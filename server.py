@@ -23,9 +23,12 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import twingate as tg  # noqa: E402
+import plant  # noqa: E402
 
 PORT = int(os.environ.get("PORT", "8790"))
 PAGE = (HERE / "index.html").read_text(encoding="utf-8")
+PLANT_PAGE = (HERE / "plant.html").read_text(encoding="utf-8")
+STATIC = {".svg": "image/svg+xml", ".mp3": "audio/mpeg", ".txt": "text/plain; charset=utf-8"}
 
 
 def reset_brain():
@@ -46,6 +49,7 @@ def reset_brain():
         p.unlink()
     tg.ensure_brain()
     tg.invalidate_base()
+    plant.reset()
     gb = tg.gb.reset(tg.BRAIN) if tg.gb.available() else {"ok": False, "reason": "gbrain not installed"}
     background(tg.warm_base)
     return {"ok": True, "gbrain": gb.get("ok", False)}
@@ -92,6 +96,17 @@ class H(BaseHTTPRequestHandler):
     def do_GET(self):
         if self.path in ("/", "/index.html"):
             return self._send(200, PAGE.encode(), "text/html; charset=utf-8")
+        if self.path in ("/plant", "/plant/", "/plant.html"):
+            return self._send(200, PLANT_PAGE.encode(), "text/html; charset=utf-8")
+        if self.path.startswith("/plant/logos/") or self.path.startswith("/plant/audio/"):
+            f = HERE / "plant" / self.path.split("/")[2] / Path(self.path).name
+            if f.exists() and f.suffix in STATIC:
+                return self._send(200, f.read_bytes(), STATIC[f.suffix])
+            return self._send(404, {"error": "not found"})
+        if self.path == "/api/plant/brain":
+            return self._send(200, plant.graph())
+        if self.path == "/api/plant/config":
+            return self._send(200, plant.config())
         if self.path == "/api/twins":
             return self._send(200, {"twins": tg.list_twins(), "sandbox": tg.sbx.available(), "gbrain": tg.gb.available(),
                                     "base_ready": tg._base_marker().exists(),
@@ -115,12 +130,16 @@ class H(BaseHTTPRequestHandler):
         body = json.loads(self.rfile.read(n) or b"{}") if n else {}
         try:
             if self.path == "/api/propose":
-                # Answer at once with the twin id; the work runs in the background and the page polls
-                # /api/twin/<id>. A proposal takes 15 to 40 s, longer than the platform edge keeps a request open.
+                # {"async": true}: answer at once with the twin id, work in the background, the page polls
+                # /api/twin/<id>. A proposal takes 15 to 40 s, longer than a hosting edge keeps a request open.
+                # Without it the call blocks until the gate has decided, which scripts and Factory Brain's proxy expect.
                 tid = tg.propose_start(body.get("task", "").strip() or "Draft the dispute for the short staple chargeback on INV-102",
                                        bool(body.get("inject_error")))
-                background(tg.propose_run, tid)
-                return self._send(202, {"id": tid, "status": "working"})
+                if body.get("async"):
+                    background(tg.propose_run, tid)
+                    return self._send(202, {"id": tid, "status": "working"})
+                tg.propose_run(tid)
+                return self._send(200, tg.review(tid))
             if self.path.startswith("/api/approve/"):
                 tid = self.path.rsplit("/", 1)[1]
                 tg.approve(tid, body.get("who", "owner"))
@@ -132,6 +151,17 @@ class H(BaseHTTPRequestHandler):
                 return self._send(200, tg.review(tid))
             if self.path == "/api/reset":
                 return self._send(200, reset_brain())
+            if self.path == "/api/plant/sms":
+                return self._send(200, plant.on_sms(body.get("body") or body.get("text") or ""))
+            if self.path == "/api/plant/voice":
+                if not body.get("transcript"):
+                    return self._send(400, {"error": "need transcript"})
+                res = plant.on_voice(body["transcript"])
+                return self._send(400 if "error" in res else 200, res)
+            if self.path == "/api/plant/claim":
+                if not body.get("text"):
+                    return self._send(400, {"error": "need text"})
+                return self._send(200, plant.on_claim(body["text"], bool(body.get("inject_error"))))
             if self.path == "/api/gbrain/init":
                 return self._send(200, tg.gb.init(tg.BRAIN))
         except (SystemExit, RuntimeError, tg.sbx.SandboxError) as e:

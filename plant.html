@@ -1,0 +1,402 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Twin Gate · Plant</title>
+<style>
+:root{
+  --font:"Inter","SF Pro Display",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  --bg-sidebar:#f5f5f5;--bg-canvas:#ffffff;--bg-surface:#fefeff;--bg-hover:#f6f6f7;--bg-selected:#e6e6e7;--bg-muted:#f0f0f0;
+  --border-subtle:#ececec;--border:#e0e0e0;--border-strong:#cfd0d6;
+  --ink:#1b1b1b;--ink-2:#5c5d5f;--ink-3:#76777a;--ink-4:#9f9fa1;
+  --cobalt:#2792FC;--cobalt-soft:#e8f3ff;--success:#32ae4b;--sage-soft:#e9f6ec;--warning:#e0b100;--amber-soft:#fdf6dc;--danger:#c61c32;
+  --plum:#8a4fd6;--plum-soft:#f3ecfc;--blue:#2477d9;--blue-soft:#e8f1fc;--sage:#2f8f46;--amber:#a07c00;--gate:#0E6B55;
+  --dot:radial-gradient(circle,#dcdcdf 1px,transparent 1px);
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;font:14px/20px var(--font);color:var(--ink);background:var(--bg-sidebar);display:grid;grid-template-columns:220px 1fr;overflow:hidden}
+button{font:inherit;cursor:pointer}
+a{color:var(--cobalt)}
+.sb{display:flex;flex-direction:column;padding:10px 8px;gap:2px;border-right:1px solid var(--border-subtle)}
+.ws{display:flex;align-items:center;gap:8px;padding:6px 8px 12px}
+.ws .mark{width:24px;height:24px;border-radius:7px;background:var(--gate);color:#fff;display:grid;place-items:center;font-weight:700;font-size:11px}
+.ws b{font-size:13px;display:block;line-height:16px}.ws small{color:var(--ink-3);font-size:11px}
+.nav{display:flex;align-items:center;gap:8px;height:28px;padding:0 8px;border-radius:7px;color:var(--ink-2);font-size:13px;cursor:pointer;border:none;background:none;text-align:left;width:100%;text-decoration:none}
+.nav:hover{background:var(--bg-hover)}.nav.on{background:var(--bg-selected);color:var(--ink);font-weight:500}
+.nav svg{width:15px;height:15px;flex:none}
+.nav .ct{margin-left:auto;font-size:11px;color:var(--ink-3)}.nav .ct.hot{background:var(--cobalt);color:#fff;border-radius:99px;padding:0 6px}
+.sbsec{font-size:11px;color:var(--ink-3);padding:14px 8px 4px}
+.sbfoot{margin-top:auto;border-top:1px solid var(--border-subtle);padding:10px 8px 2px;font-size:11px;color:var(--ink-3);line-height:16px}
+.sbfoot b{color:var(--ink-2);font-weight:500}
+.dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--success);margin-right:5px}
+.dot.warn{background:var(--warning)}
+.frame{display:grid;grid-template-rows:52px 1fr;margin:8px 8px 8px 0;background:var(--bg-canvas);border:1px solid var(--border-subtle);border-radius:12px;overflow:hidden;min-width:0}
+.top{display:flex;align-items:center;gap:10px;padding:0 16px;border-bottom:1px solid var(--border-subtle)}
+.crumb{font-size:13px;color:var(--ink-3)}.crumb b{color:var(--ink);font-weight:500}
+.top .sp{flex:1}
+.btn{height:32px;padding:0 12px;border-radius:7px;border:1px solid var(--border);background:var(--bg-surface);color:var(--ink);font-size:13px;display:inline-flex;align-items:center;gap:6px;text-decoration:none}
+.btn:hover{background:var(--bg-hover)}
+.btn.pri{background:var(--cobalt);border-color:var(--cobalt);color:#fff;font-weight:500}.btn.pri:hover{background:#1E80E5}
+.btn.ok{background:var(--success);border-color:var(--success);color:#fff;font-weight:500}
+.btn:disabled{opacity:.5;cursor:default}
+select.btn{padding-right:8px}
+.body{display:grid;grid-template-columns:1fr 388px;min-height:0}
+.body.full{grid-template-columns:1fr}
+.page{overflow:auto;min-height:0;padding:24px 28px}
+.page h1{font-size:24px;line-height:32px;font-weight:600;margin:0 0 4px}
+.page .lead{color:var(--ink-2);margin:0 0 20px;max-width:760px}
+.canvas{position:relative;overflow:auto;background:var(--bg-canvas);background-image:var(--dot);background-size:18px 18px;min-height:0}
+.wires{position:absolute;left:0;top:0;pointer-events:none}
+.wires path{fill:none;stroke:var(--border-strong);stroke-width:1.5}
+.wires path.done{stroke:var(--success)}.wires path.live{stroke:var(--cobalt);stroke-width:2;stroke-dasharray:5 4;animation:flow .6s linear infinite}
+@keyframes flow{to{stroke-dashoffset:-18}}
+.node{position:absolute;width:240px;background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:12px;padding:10px 12px;box-shadow:0 1px 2px #0000000d;cursor:pointer;transition:border-color .15s,box-shadow .15s}
+.node:hover{border-color:var(--border-strong)}
+.node.sel{border-color:var(--ink);box-shadow:0 0 0 1.5px var(--ink)}
+.node.run{border-color:var(--cobalt);box-shadow:0 0 0 3px #2792fc33;animation:pulse 1s ease-in-out infinite}
+@keyframes pulse{50%{box-shadow:0 0 0 6px #2792fc22}}
+.node.done{border-color:var(--success)}
+.node.wait{border-color:var(--warning);box-shadow:0 0 0 3px #e0b10033}
+.node.skip{border-color:var(--border-strong);border-style:dashed}.node.skip .o{display:block}
+.node.fail{border-color:var(--danger);box-shadow:0 0 0 3px #c61c3226}.node.fail .o{display:block;color:var(--danger)}.wires path.fail{stroke:var(--danger)}
+.logline.fail .ic{background:var(--danger)}.chk{font-size:12px;line-height:18px}.chk b{display:inline-block;width:16px}.approval.block{border-color:#c61c3266;background:#fff6f7}
+.nh{display:flex;align-items:center;gap:8px}
+.logo{width:22px;height:22px;border-radius:6px;display:grid;place-items:center;flex:none;overflow:hidden;background:#fff;border:1px solid var(--border-subtle)}
+.logo img{width:16px;height:16px}
+.logo.mono{font-size:9px;font-weight:700;color:#fff;border:none}
+.chip{font-size:10px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;padding:1px 7px;border-radius:4px}
+.k-trigger{background:var(--blue-soft);color:var(--blue)}.k-tool{background:#0000000d;color:var(--ink-2)}.k-agent{background:var(--plum-soft);color:var(--plum)}
+.k-action{background:var(--sage-soft);color:var(--sage)}.k-condition{background:var(--amber-soft);color:var(--amber)}.k-gate{background:#0e6b5522;color:var(--gate)}
+.nstat{margin-left:auto;font-size:11px;color:var(--ink-3)}
+.node .t{font-weight:600;margin-top:6px;font-size:13px}
+.node .s{color:var(--ink-3);font-size:12px;line-height:16px}
+.node .o{display:none;margin-top:8px;font:12px/17px var(--mono);color:var(--ink);background:var(--bg-muted);border-radius:6px;padding:7px 9px;white-space:pre-wrap;word-break:break-word;overflow:hidden}
+.node.done .o,.node.wait .o,.node.run .o{display:block}.node .o span{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:4;overflow:hidden}
+.rp{border-left:1px solid var(--border-subtle);display:flex;flex-direction:column;min-height:0;background:var(--bg-surface)}
+.tabs{display:flex;gap:2px;padding:8px 10px 0;border-bottom:1px solid var(--border-subtle)}
+.tab{border:none;background:none;padding:8px 10px;font-size:13px;color:var(--ink-3);border-bottom:2px solid transparent}
+.tab.on{color:var(--ink);border-bottom-color:var(--ink);font-weight:500}
+.rpb{overflow:auto;padding:14px 16px;flex:1}
+.sec{font-size:11px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.6px;margin:14px 0 6px}
+.kv{display:grid;grid-template-columns:110px 1fr;gap:4px 10px;font-size:13px}.kv span:nth-child(odd){color:var(--ink-3)}
+.logline{display:grid;grid-template-columns:18px 1fr;gap:8px;padding:8px 0;border-bottom:1px solid var(--border-subtle);font-size:13px}
+.logline .ic{width:14px;height:14px;border-radius:50%;margin-top:3px;background:var(--border)}
+.logline.done .ic{background:var(--success)}.logline.run .ic{background:var(--cobalt)}.logline.wait .ic{background:var(--warning)}
+.logline .m{color:var(--ink-3);font-size:12px;white-space:pre-wrap}
+.logline pre{margin:4px 0 0;font:11px/15px var(--mono);white-space:pre-wrap;background:var(--bg-muted);padding:6px 8px;border-radius:6px;color:var(--ink-2)}
+.card{border:1px solid var(--border-subtle);border-radius:12px;padding:14px;background:var(--bg-surface)}
+.card+.card{margin-top:10px}
+.approval{border:1px solid #e0b10066;background:#fffdf3;border-radius:12px;padding:12px;margin-bottom:10px}
+.approval h4{margin:0 0 4px;font-size:13px}.approval p{margin:0 0 8px;font-size:12px;color:var(--ink-2);white-space:pre-wrap}
+audio{width:100%;height:32px;margin-top:6px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+.tile{border:1px solid var(--border-subtle);border-radius:12px;padding:14px;background:var(--bg-surface);cursor:pointer}
+.tile:hover{border-color:var(--border-strong)}
+.tile .nh .logo{width:32px;height:32px;border-radius:8px}.tile .nh .logo img{width:22px;height:22px}.tile .nh .logo.mono{font-size:11px}
+.tile h3{margin:0;font-size:14px;font-weight:600}.tile p{margin:8px 0 0;color:var(--ink-3);font-size:12px;line-height:17px}
+.status{font-size:11px;padding:1px 8px;border-radius:99px;margin-left:auto;white-space:nowrap}
+.st-ok{background:var(--sage-soft);color:var(--sage)}.st-local{background:var(--cobalt-soft);color:var(--blue)}.st-warn{background:var(--amber-soft);color:var(--amber)}.st-new{background:var(--plum-soft);color:var(--plum)}.st-gate{background:#0e6b5522;color:var(--gate)}
+.logos{display:flex;gap:4px;margin-top:12px}
+.row{display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid var(--border-subtle);font-size:13px;cursor:pointer}
+.row:hover{background:var(--bg-hover)}
+.row .muted{color:var(--ink-3)}
+.pill{font-size:11px;padding:1px 8px;border-radius:99px;background:var(--bg-muted);color:var(--ink-2)}
+.modal{position:fixed;inset:0;background:#0006;display:none;align-items:center;justify-content:center;z-index:9}
+.modal.show{display:flex}
+.modal .box{background:#fff;border-radius:12px;max-width:640px;width:92%;max-height:80vh;overflow:auto;padding:18px}
+.modal pre{white-space:pre-wrap;font:12px/17px var(--mono);color:var(--ink-2)}
+</style>
+</head>
+<body>
+<aside class="sb">
+  <div class="ws"><div class="mark">TG</div><div><b>Twin Gate</b><small>Plant example</small></div></div>
+  <button class="nav" data-view="automations"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 1 3 9h5l-1 6 6-8H8l1-6z"/></svg>Automations<span class="ct" id="c-auto"></span></button>
+  <button class="nav" data-view="inbox"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 9h3l1 2h4l1-2h3M2 9l2-6h8l2 6v4H2z"/></svg>Inbox<span class="ct" id="c-inbox"></span></button>
+  <button class="nav" data-view="agent"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 1v3M4 5h8v7H4zM6 8h.01M10 8h.01M2 8v2M14 8v2"/></svg>Agent</button>
+  <button class="nav" data-view="connectors"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 10 10 6M5 7 3.5 8.5a2.5 2.5 0 0 0 3.5 3.5L8.5 10.5M11 9l1.5-1.5A2.5 2.5 0 0 0 9 4L7.5 5.5"/></svg>Connectors<span class="ct" id="c-conn"></span></button>
+  <button class="nav" data-view="knowledge"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 2h8l2 2v10H3zM6 6h4M6 9h4"/></svg>Knowledge<span class="ct" id="c-know"></span></button>
+  <div class="sbsec">How it works</div>
+  <button class="nav" data-view="overview"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="2.5"/><circle cx="2.5" cy="3" r="1.5"/><circle cx="13.5" cy="3" r="1.5"/><circle cx="2.5" cy="13" r="1.5"/><circle cx="13.5" cy="13" r="1.5"/><path d="M4 4l2.3 2.3M12 4 9.7 6.3M4 12l2.3-2.3M12 12 9.7 9.7"/></svg>Parties and channels</button>
+  <a class="nav" href="/" target="_blank" rel="noopener"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4h12v9H2zM2 7h12M5 4v9"/></svg>Review twins<span class="ct" id="c-twins"></span></a>
+  <div class="sbfoot" id="infra">checking runtime...</div>
+</aside>
+
+<div class="frame">
+  <div class="top"><span class="crumb" id="crumb"></span><span class="sp"></span><span id="topactions"></span></div>
+  <div class="body" id="body">
+    <div class="page" id="page"></div>
+    <div class="rp" id="rp">
+      <div class="tabs"><button class="tab on" data-tab="run">Run</button><button class="tab" data-tab="node">Node</button><button class="tab" data-tab="approvals">Approvals</button></div>
+      <div class="rpb" id="rpb"></div>
+    </div>
+  </div>
+</div>
+<div class="modal" id="modal"><div class="box"><pre id="modaltext"></pre><button class="btn" id="close">Close</button></div></div>
+
+<script>
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const esc=s=>String(s??"").replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+const post=async(u,b)=>{const r=await fetch(u,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(b||{})});const j=await r.json();if(!r.ok&&!j.error)j.error=r.statusText;return j};
+const get=u=>fetch(u).then(r=>r.json());
+const wait=ms=>new Promise(r=>setTimeout(r,ms));
+const money=v=>"$"+Number(v||0).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
+const now=()=>new Date().toLocaleTimeString([],{hour:"2-digit",minute:"2-digit",second:"2-digit"});
+
+// ---------- connectors ----------
+const CONN={
+  sms:{name:"Truck scale SMS",mono:"SMS",bg:"#c99a2e",desc:"Reads the weight texts the scale already sends. Nothing on the scale or the PLC changes.",status:["Simulated in this demo","warn"],used:"Trigger in Truckload to grower payment"},
+  whatsapp:{name:"WhatsApp Business",img:"whatsapp",desc:"The line QC, growers, the owner and the broker already use. Voice notes, text and one-tap approvals.",status:["Simulated in this demo","warn"],used:"Trigger and actions in both automations"},
+  gmail:{name:"Gmail",img:"gmail",desc:"Broker order confirmations and mill claims that arrive by email.",status:["Simulated in this demo","warn"],used:"Trigger in Chargeback defence"},
+  whisper:{name:"Speech to text",img:"openai",desc:"Whisper on the owner's machine turns voice notes in three languages into text. This server has none, so the sample transcript is used.",status:["","local"],used:"Tool in Truckload to grower payment"},
+  ollama:{name:"Ollama",img:"ollama",desc:"An open model on the owner's hardware reads voice notes and drafts disputes. Without one, deterministic rules do the same work and the page says so.",status:["","local"],used:"Agent steps in both automations"},
+  tally:{name:"TallyPrime",mono:"T",bg:"#1d4e89",desc:"Purchase vouchers are prepared as Tally XML and would post in a batch when the office PC is switched on.",status:["Queue mode, simulated","warn"],used:"Action in Truckload to grower payment"},
+  gate:{name:"Twin Gate · CreateOS Sandbox",mono:"TG",bg:"#0E6B55",desc:"The agent never writes to the brain directly. Each run's records go into one twin: a git branch plus a forked CreateOS sandbox with outbound traffic blocked. Five checks run on both before anyone can approve.",status:["","gate"],used:"Tool in both automations"},
+  gbrain:{name:"GBrain",img:"",mono:"GB",bg:"#5b3cc4",desc:"Local, keyless index over the markdown brain. It moves only when the gate merges, so recall never returns an unproven record.",status:["","gate"],used:"Action in both automations"},
+  brain:{name:"Plant brain",mono:"PB",bg:"#1b1b1b",desc:"Every record as a markdown file under git that the owners keep: tickets, settlements, orders, shipments, chargebacks, procedures.",status:["This server","ok"],used:"Read by every step, written only through the gate"},
+  human:{name:"Human approval",mono:"✓",bg:"#e0b100",desc:"A person decides. The run waits in Inbox until someone approves, and approve is the merge.",status:["Built in","ok"],used:""},
+};
+const logo=k=>{const c=CONN[k];return c.img?`<span class="logo"><img src="/plant/logos/${c.img}.svg" alt=""></span>`:`<span class="logo mono" style="background:${c.bg}">${c.mono}</span>`};
+
+// ---------- automations ----------
+const AUTOS={
+ truck:{name:"Truckload to grower payment",desc:"From two truck scale SMS to a scale ticket, a grower settlement and a Tally voucher. The three records are written in one twin, proven by Twin Gate, and merged when accounts approves.",trigger:"Truck scale SMS",
+  nodes:[
+   {id:"t1",k:"trigger",c:"sms",t:"Loaded truck weighed",s:"SMS from the truck scale: gross weight"},
+   {id:"t2",k:"trigger",c:"sms",t:"Empty truck weighed",s:"SMS from the truck scale: tare weight"},
+   {id:"t3",k:"tool",c:"brain",t:"Pair weights into a scale ticket",s:"Match by slip or truck number, compute net"},
+   {id:"t4",k:"action",c:"whatsapp",t:"Ask QC for price and moisture",s:"WhatsApp to the QC grader"},
+   {id:"t5",k:"trigger",c:"whatsapp",t:"QC voice note received",s:"Three languages in one note"},
+   {id:"t6",k:"tool",c:"whisper",t:"Transcribe voice note",s:"Whisper on the owner's machine, or the sample transcript"},
+   {id:"t7",k:"agent",c:"ollama",t:"Extract grower, price, moisture",s:"Open model, or rules"},
+   {id:"t8",k:"action",c:"brain",t:"Write ticket, grower and settlement",s:"Into one twin, not into the brain"},
+   {id:"tg",k:"gate",c:"gate",t:"Prove it in a twin",s:"Branch checks, then the same checks in a forked sandbox"},
+   {id:"t9",k:"action",c:"whatsapp",t:"Confirm to grower",s:"WhatsApp with weight, price, moisture"},
+   {id:"t10",k:"condition",c:"human",t:"Accounts approves payment",s:"Waits in Inbox; approve is the merge"},
+   {id:"t11",k:"action",c:"tally",t:"Queue Tally purchase voucher",s:"Posts when the office PC is on"},
+  ]},
+ claim:{name:"Chargeback defence",desc:"A mill deducts money through the broker. The agent pulls the contract, the outbound QC test and the retained sample, prices the risk and drafts the dispute. Twin Gate proves the record in a sandbox before the owner ever sees it.",trigger:"Broker WhatsApp or Gmail",
+  nodes:[
+   {id:"c1",k:"trigger",c:"gmail",t:"Broker forwards a mill claim",s:"Gmail or WhatsApp"},
+   {id:"c2",k:"agent",c:"ollama",t:"Read claim",s:"Invoice, disputed spec, deduction"},
+   {id:"c3",k:"tool",c:"brain",t:"Pull the evidence",s:"Sales order, shipment QC, retained sample"},
+   {id:"c4",k:"tool",c:"brain",t:"Price the risk",s:"Cents per lb x shipment weight"},
+   {id:"c5",k:"condition",c:"brain",t:"Saved procedure for this type?",s:"Yes: follow it. No: work it out, then save it"},
+   {id:"c6",k:"agent",c:"ollama",t:"Draft the dispute",s:"Only facts from the records"},
+   {id:"cg",k:"gate",c:"gate",t:"Prove it in a twin",s:"Twin Gate: forked CreateOS sandbox, five checks"},
+   {id:"c7",k:"condition",c:"human",t:"Owner approves",s:"Only if every check passed; approve is the merge"},
+   {id:"c8",k:"action",c:"whatsapp",t:"Send dispute to broker",s:"Joint re-test of the retained sample"},
+   {id:"c9",k:"action",c:"gbrain",t:"Merged into the brain",s:"GBrain indexes only what the gate merged"},
+  ]},
+};
+const SAMPLES={
+ a:{label:"Mill A: staple length",text:"Spinning Mill A reports staple length 28.5 mm on invoice INV-102 against the 29 mm contract spec. They are deducting 0.6 cents per lb."},
+ w:{label:"Mill A: agent writes the wrong weight",text:"Spinning Mill A reports staple length 28.5 mm on invoice INV-102 against the 29 mm contract spec. They are deducting 0.6 cents per lb.",inject:true},
+ b:{label:"Mill B: micronaire",text:"Spinning Mill B reports micronaire 4.9 on invoice INV-110, above the 4.5 maximum. Charging back 0.4 cents per lb."},
+};
+
+// ---------- state ----------
+const S={view:"automations",auto:null,sel:null,tab:"run",node:{},out:{},log:[],approvals:[],runs:{truck:0,claim:0},running:false,sample:"a",seed:new Set(),learned:false,cfg:{}};
+
+// ---------- canvas ----------
+const PACE=1000,NW=240,NH=132,GX=56,GY=36,COLS=3;
+function layout(nodes){const per=Math.ceil(nodes.length/COLS);return nodes.map((n,i)=>({...n,x:32+Math.floor(i/per)*(NW+GX),y:28+(i%per)*(NH+GY)}))}
+function nodeHtml(n){const st=S.node[n.id]||"";const sl={run:"running",done:"done",wait:"waiting",fail:"blocked",skip:"not connected"}[st]||"";
+  return `<div class="node ${st} ${S.sel===n.id?"sel":""}" data-id="${n.id}" style="left:${n.x}px;top:0"><div class="nh">${logo(n.c)}<span class="chip k-${n.k}">${n.k==="condition"?"If / approve":n.k}</span><span class="nstat">${sl}</span></div><div class="t">${esc(n.t)}</div><div class="s">${esc(n.s)}</div><div class="o"><span>${esc(S.out[n.id]||"")}</span></div></div>`}
+function drawCanvas(){
+  const a=AUTOS[S.auto],L=layout(a.nodes),per=Math.ceil(L.length/COLS);
+  const W=Math.max(...L.map(n=>n.x))+NW+60;
+  $("#page").innerHTML=`<div class="canvas" id="canvas" style="height:100%"><svg class="wires" id="wires"></svg><div id="nodes" style="position:relative;width:${W}px">${L.map(nodeHtml).join("")}</div></div>`;
+  $("#page").style.padding="0";
+  const box={};let H=0;
+  for(let c=0;c<COLS;c++){let y=28;L.slice(c*per,(c+1)*per).forEach(n=>{const el=$(`.node[data-id="${n.id}"]`);el.style.top=y+"px";box[n.id]={x:n.x,y,h:el.offsetHeight};y+=el.offsetHeight+GY});H=Math.max(H,y)}
+  H+=80;$("#nodes").style.height=H+"px";
+  let paths="";for(let i=0;i<L.length-1;i++){const p=box[L[i].id],q=box[L[i+1].id];let d;
+    if(p.x===q.x){const x=p.x+NW/2;d=`M${x},${p.y+p.h} L${x},${q.y}`}
+    else{const x1=p.x+NW,y1=p.y+p.h/2,x2=q.x,y2=q.y+q.h/2,mx=(x1+x2)/2;d=`M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2},${y2}`}
+    const a1=S.node[L[i].id],b1=S.node[L[i+1].id];
+    const cls=(b1==="skip"||a1==="skip")?"":b1==="fail"&&(a1==="done"||a1==="fail")?"fail":a1==="done"&&(b1==="done"||b1==="wait")?"done":a1==="done"&&b1==="run"?"live":"";paths+=`<path class="${cls}" d="${d}"/>`}
+  const w=$("#wires");w.setAttribute("width",W);w.setAttribute("height",H);w.innerHTML=paths;
+  $$(".node").forEach(el=>el.onclick=()=>{S.sel=el.dataset.id;S.tab="node";drawCanvas();drawRP()});
+}
+function setNode(id,st,out){S.node[id]=st;if(out!==undefined)S.out[id]=out;if(S.view==="auto")drawCanvas()}
+function log(id,title,msg,st="done",extra=""){const i=S.log.findIndex(l=>l.id===id);const e={id,title,msg,st,extra,t:now()};if(i>=0)S.log[i]=e;else S.log.push(e);if(S.tab==="run")drawRP()}
+
+// ---------- right panel ----------
+function drawRP(){
+  $$(".tab").forEach(t=>t.classList.toggle("on",t.dataset.tab===S.tab));
+  const b=$("#rpb");
+  if(S.tab==="run"){
+    if(!S.log.length){b.innerHTML=`<div class="sec">No run yet</div><p style="color:var(--ink-3);font-size:13px">Press <b>Run with sample event</b>. Each step lights up on the canvas and lands here with what it received and what it produced. Nothing is written to the brain until a person approves, and approve is the merge.</p>`;return}
+    b.innerHTML=S.log.map(l=>`<div class="logline ${l.st}"><span class="ic"></span><div><b>${esc(l.title)}</b> <span class="m">${l.t}</span><div class="m">${l.msg}</div>${l.extra}</div></div>`).join("");b.scrollTop=1e9;return}
+  if(S.tab==="node"){
+    const a=AUTOS[S.auto],n=a&&a.nodes.find(x=>x.id===S.sel);
+    if(!n){b.innerHTML=`<p style="color:var(--ink-3)">Select a node on the canvas.</p>`;return}
+    const c=CONN[n.c];
+    b.innerHTML=`<div class="nh">${logo(n.c)}<span class="chip k-${n.k}">${n.k}</span></div><h3 style="margin:10px 0 2px;font-size:16px">${esc(n.t)}</h3><div style="color:var(--ink-3)">${esc(n.s)}</div>
+      <div class="sec">Connector</div><div class="kv"><span>App</span><span>${esc(c.name)}</span><span>Status</span><span>${esc(connStatus(n.c)[0])}</span></div>
+      <div class="sec">Last output</div><pre style="font:12px/17px var(--mono);white-space:pre-wrap;background:var(--bg-muted);padding:8px;border-radius:8px;margin:0">${esc(S.out[n.id]||"Not run yet")}</pre>`;return}
+  if(S.tab==="approvals")b.innerHTML=approvalsHtml()||`<p style="color:var(--ink-3)">Nothing waiting for approval.</p>`,bindApprovals();
+}
+function approvalsHtml(){return S.approvals.filter(a=>!a.done).map((a,i)=>`<div class="approval ${a.block?"block":""}"><h4>${esc(a.title)}</h4><p>${esc(a.body)}</p>${a.twin?`<p><a href="/#${esc(a.twin)}" target="_blank" rel="noopener">Open ${esc(a.twin)} on the review page</a></p>`:""}<button class="btn ${a.block?"":"ok"}" data-ap="${S.approvals.indexOf(a)}">${esc(a.cta)}</button></div>`).join("")}
+function bindApprovals(){$$("[data-ap]").forEach(b=>b.onclick=async()=>{b.disabled=true;b.textContent="Working...";const a=S.approvals[+b.dataset.ap];try{await a.fn();a.done=true}catch(e){b.disabled=false;b.textContent=a.cta;alert("Could not complete: "+e.message);return}counts();if(S.view==="inbox")showInbox();else drawRP()})}
+function connStatus(k){const c=CONN[k];const cf=S.cfg||{};
+  if(k==="gate")return cf.sandbox?["Sandbox forks on","gate"]:["Branch twins only (no sandbox key)","warn"];
+  if(k==="gbrain")return cf.gbrain?["Indexed, local","gate"]:["Not installed","warn"];
+  if(c.status[1]!=="local")return c.status;
+  if(k==="ollama")return cf.model&&cf.llm_reachable!==false?[`Local · ${cf.model}`,"local"]:["Not configured: rules","warn"];
+  if(k==="whisper")return cf.speech==="local"?["Local on this machine","local"]:["Not configured: sample transcript","warn"]}
+
+// ---------- the gate step, shared by both automations ----------
+async function prove(nodeId,twinId){
+  setNode(nodeId,"run",`Twin ${twinId}: starting`);log(nodeId,"Proving the records in a twin",`Twin ${twinId}: branch created, checks running, sandbox forking...`,"run");
+  let t;const t0=Date.now();
+  for(let i=0;i<150;i++){t=await get("/api/twin/"+twinId);
+    if(t.status!=="working")break;
+    const last=t.log&&t.log.length?t.log[t.log.length-1].action:"starting";
+    setNode(nodeId,"run",`Twin ${twinId} (${((Date.now()-t0)/1000).toFixed(0)}s): ${last}`);await wait(1500)}
+  const sb=t.sandbox||{},bad=(t.checks||[]).filter(c=>!c.ok);
+  const chk=(t.checks||[]).map(c=>`<div class="chk"><b style="color:${c.ok?"var(--success)":"var(--danger)"}">${c.ok?"✓":"✗"}</b>${esc(c.name)}${c.ok?"":": "+esc(c.detail)}</div>`).join("")
+    +(sb.checks?`<div class="chk" style="margin-top:4px;color:var(--ink-3)">Same checks inside the sandbox: ${sb.checks.ok?"passed":"failed"}. Egress probe: ${esc((sb.egress_probe||"").slice(-60))}</div>`:"");
+  const where=sb.id?`Twin ${twinId} · sandbox ${sb.id.slice(0,16)}… forked from ${(sb.base||"").slice(0,16)}… · egress limited to ${esc((sb.egress||[]).join(", ")||"none")}`:sb.error?`Twin ${twinId} · sandbox error: ${esc(sb.error)}`:`Twin ${twinId} · git branch (no sandbox key)`;
+  if(t.status==="error"){setNode(nodeId,"fail",`Run failed: ${t.error}`);log(nodeId,"Twin Gate could not run",esc(t.error||""),"fail");return{ok:false,t,bad:[],chk,where,error:t.error}}
+  if(bad.length){setNode(nodeId,"fail",`Blocked: ${bad.map(c=>c.detail).join("; ")}`);log(nodeId,"Blocked by Twin Gate",where,"fail",chk);return{ok:false,t,bad,chk,where}}
+  setNode(nodeId,"done",`All ${t.checks.length} checks passed in ${twinId}${sb.id?", on the branch and inside the sandbox":""}`);log(nodeId,"Proven in a twin",where,"done",chk);
+  return{ok:true,t,bad,chk,where}
+}
+function blocked(twinId,bad,nextNode,who){
+  setNode(nextNode,"fail",`Nothing to approve. The wrong figure never left the twin.`);log(nextNode,`${who} not asked`,"The gate blocked the records, so nothing reached a person or left the building.","fail");
+  S.approvals.push({block:true,twin:twinId,title:`Blocked by Twin Gate · ${twinId}`,body:`The agent's records failed: ${bad.map(c=>c.detail).join("; ")}. Discard the twin; the agent can try again.`,cta:"Discard twin",fn:async()=>{const r=await post(`/api/reject/${twinId}`,{who:"owner"});if(r.error)throw new Error(r.error);log(nextNode,"Twin discarded",`${twinId} rejected, branch deleted, sandbox destroyed`,"fail")}});
+}
+
+// ---------- running the automations ----------
+async function runTruck(){
+  S.node={};S.out={};S.log=[];S.tab="run";drawCanvas();drawRP();
+  const step=async(id,title,fn)=>{setNode(id,"run");log(id,title,"running...","run");const r=await fn();await wait(PACE);return r};
+  const g="TRUCK SCALE SL:1041 VNO:MH27AB4412 GROSS:6840KG",t="TRUCK SCALE SL:1041 VNO:MH27AB4412 TARE:2310KG";
+  await step("t1","Loaded truck weighed",()=>post("/api/plant/sms",{body:g}));setNode("t1","done",g);log("t1","Loaded truck weighed","SMS received","done",`<pre>${esc(g)}</pre>`);
+  const r2=await step("t2","Empty truck weighed",()=>post("/api/plant/sms",{body:t}));setNode("t2","done",t);log("t2","Empty truck weighed","SMS received","done",`<pre>${esc(t)}</pre>`);
+  if(r2.error||!r2.record){setNode("t3","fail",r2.error||"could not pair the two readings");log("t3","Pairing failed",esc(r2.error||r2.note||""),"fail");return}
+  await step("t3","Pair weights",()=>wait(PACE));setNode("t3","done",`${r2.record}: ${r2.gross_kg.toLocaleString()} − ${r2.tare_kg.toLocaleString()} = ${r2.net_kg.toLocaleString()} kg net (drafted for the twin)`);log("t3","Scale ticket drafted",`${r2.record}, net ${r2.net_kg.toLocaleString()} kg. Held for the twin; nothing written yet.`);
+  await step("t4","Ask QC",()=>wait(PACE));setNode("t4","done",r2.reply);log("t4","WhatsApp to QC grader (simulated)",esc(r2.reply));
+  setNode("t5","run");log("t5","QC voice note received","","run",`<audio controls src="/plant/audio/rate-note.mp3"></audio>`);
+  try{const au=new Audio("/plant/audio/rate-note.mp3");au.play().catch(()=>{})}catch(e){}
+  await wait(PACE*2);setNode("t5","done","Voice note, 0:06");log("t5","QC voice note received","Three languages in one note","done",`<audio controls src="/plant/audio/rate-note.mp3"></audio>`);
+  setNode("t6","run");log("t6","Transcribing","running...","run");
+  const tx=await fetch("/plant/audio/rate-note.txt").then(x=>x.text());await wait(PACE);
+  setNode("t6","done",tx.trim());log("t6","Transcribed","Sample transcript: this server has no speech model. On the owner's laptop Whisper produces this line.","done",`<pre>${esc(tx.trim())}</pre>`);
+  setNode("t7","run");log("t7","Extracting fields","running...","run");
+  const r=await post("/api/plant/voice",{transcript:tx.trim()});
+  if(r.error){setNode("t7","fail",r.error);log("t7","Extraction failed",esc(r.error),"fail");return}
+  const f=r.fields||{};await wait(PACE);
+  setNode("t7","done",`grower: ${r.grower}\nprice: ${money(r.rate)} / 100 kg\nmoisture: ${r.moisture}%`);log("t7","Fields extracted",esc(r.extracted_by),"done",`<pre>${esc(JSON.stringify(f,null,1))}</pre>`);
+  await step("t8","Writing records into the twin",()=>wait(PACE));setNode("t8","done",`Twin ${r.twin}:\n${r.records.join("\n")}\n${r.record}: ${r.net_kg.toLocaleString()} kg x ${money(r.rate)}/100 kg = ${r.amount}`);log("t8","Three records written in the twin",`${r.records.map(esc).join(", ")}. The settlement declares reconcile: net_kg = ${esc(r.records[0])}#net_kg.`);
+  const pv=await prove("tg",r.twin);
+  if(!pv.ok){if(pv.bad.length)blocked(r.twin,pv.bad,"t10","Accounts");S.tab="run";counts();drawRP();return}
+  await step("t9","Confirming to grower",()=>wait(PACE));const gm=`${r.grower}, your cotton: ${r.net_kg.toLocaleString()} kg at ${money(r.rate)} per 100 kg, moisture ${r.moisture}%. Payment is being prepared.`;setNode("t9","done",gm);log("t9","WhatsApp to grower (simulated)",esc(gm));
+  setNode("t10","wait",`Waiting for accounts: ${r.record}, ${r.amount}`);log("t10","Waiting for approval",`Accounts must approve ${r.record} (${r.amount}). See Inbox. Approve merges twin ${r.twin} into the brain.`,"wait");
+  S.approvals.push({twin:r.twin,title:`Approve grower payment ${r.record} · ${r.amount}`,body:`${r.grower} · ${r.net_kg.toLocaleString()} kg · ${money(r.rate)}/100 kg · moisture ${r.moisture}%\n\nProven in ${r.twin}: ${pv.t.checks.length} of ${pv.t.checks.length} checks passed. Approving merges ${r.records.length} records into the brain.`,cta:"Approve payment",fn:async()=>{
+    const m=await post(`/api/approve/${r.twin}`,{who:"accounts"});if(m.error)throw new Error(m.error);
+    setNode("t10","done",`Approved by accounts; ${r.twin} merged into main${m.gbrain&&m.gbrain.synced?", GBrain synced":""}`);log("t10","Approved and merged",`Accounts approved. ${r.twin} merged into the brain${m.gbrain&&m.gbrain.synced?"; GBrain indexed the three records":""}; the twin sandbox was destroyed.`);
+    setNode("t11","run");await wait(PACE);setNode("t11","done",`Purchase voucher for ${r.grower}, ${r.amount}\nqueued: posts when the office PC is on`);log("t11","Tally voucher prepared (simulated queue)","Posts in a batch when the office PC is switched on","done",`<pre>${esc(r.tally_xml)}</pre>`);S.runs.truck++;counts()}});
+  S.tab="approvals";counts();drawRP();
+}
+async function runClaim(){
+  S.node={};S.out={};S.log=[];S.tab="run";drawCanvas();drawRP();
+  const smp=SAMPLES[S.sample],text=smp.text;
+  setNode("c1","run");await wait(PACE);setNode("c1","done",text);log("c1","Claim received from broker (simulated)","","done",`<pre>${esc(text)}</pre>`);
+  setNode("c2","run");setNode("c3","run");log("c2","Reading claim and pulling evidence","running...","run");
+  const r=await post("/api/plant/claim",{text,inject_error:!!smp.inject});
+  if(r.error){setNode("c2","fail",r.error);log("c2","Could not read the claim",esc(r.error),"fail");return}
+  setNode("c2","done",`invoice: ${r.invoice}\nspec: ${r.spec}\ndeduction: ${r.cents_per_lb} cents per lb`);log("c2","Claim read",`Invoice ${esc(r.invoice)}, ${esc(r.spec)}`);
+  setNode("c3","done",r.steps.filter(s=>!/procedure/.test(s)).join("\n"));log("c3","Evidence pulled","","done",`<pre>${esc(r.steps.filter(s=>!/procedure/.test(s)).join("\n"))}</pre>`);
+  setNode("c4","run");await wait(PACE);
+  const wrong=r.net_kg!==r.net_kg_on_shipment;
+  setNode("c4","done",`${money(r.at_risk)} at risk on this shipment\n${r.cents_per_lb} c/lb x ${r.net_kg.toLocaleString()} kg${wrong?" (the agent copied the weight wrong)":""}`);log("c4","Risk priced",`${money(r.at_risk)} at risk, from ${r.net_kg.toLocaleString()} kg net${wrong?`. The shipment page says ${r.net_kg_on_shipment.toLocaleString()} kg`:""}`);
+  setNode("c5","run");await wait(PACE);setNode("c5","done",r.learned?`Yes: following ${r.sop.split("/").pop()}`:"No: working it out; a procedure is written in the same twin");log("c5","Saved procedure?",r.learned?"Yes, following the procedure saved after the last chargeback":"No. Worked it out from the records and drafted a procedure, in the same twin");
+  setNode("c6","run");await wait(PACE);setNode("c6","done",r.draft);log("c6","Dispute drafted",esc(r.drafted_by)+` · records in the twin: ${r.records.map(esc).join(", ")}`,"done",`<pre>${esc(r.draft)}</pre>`);
+  const pv=await prove("cg",r.twin);
+  if(!pv.ok){if(pv.bad.length)blocked(r.twin,pv.bad,"c7","Owner");S.tab="run";counts();drawRP();return}
+  setNode("c7","wait",`Waiting for owner: ${r.record}, ${money(r.at_risk)} at risk`);log("c7","Waiting for approval",`Owner must approve the dispute for ${r.record}. See Inbox. Approve merges twin ${r.twin}.`,"wait");
+  S.approvals.push({twin:r.twin,title:`Approve dispute ${r.record} · ${money(r.at_risk)} at risk`,body:`${r.draft}\n\nProven in ${r.twin}: ${pv.t.checks.length} of ${pv.t.checks.length} checks passed. Approving merges ${r.records.length} records into the brain.`,cta:"Approve and send to broker",fn:async()=>{
+    const m=await post(`/api/approve/${r.twin}`,{who:"owner"});if(m.error)throw new Error(m.error);
+    setNode("c7","done",`Approved by owner; ${r.twin} merged into main`);log("c7","Approved and merged",`Owner approved. ${r.twin} merged into the brain; the twin sandbox was destroyed.`);
+    setNode("c8","run");await wait(PACE);setNode("c8","done","Dispute to Broker Joshi on WhatsApp (simulated)");log("c8","Dispute sent to broker (simulated)","WhatsApp to Broker Joshi");
+    setNode("c9","run");await wait(PACE);const synced=m.gbrain&&m.gbrain.synced;setNode("c9","done",`${r.record} in the brain${synced?" · GBrain synced":""}${r.learned?"":" · procedure saved"}`);log("c9","Merged into the brain",`${synced?"GBrain indexed the merged records. ":""}${r.records.map(esc).join(", ")} now on main.`);
+    S.learned=true;S.runs.claim++;counts()}});
+  S.tab="approvals";counts();drawRP();
+}
+
+// ---------- views ----------
+function setView(v,auto){S.view=v;if(auto)S.auto=auto;$$(".nav").forEach(n=>n.classList.toggle("on",n.dataset.view===v||(v==="auto"&&n.dataset.view==="automations")));
+  $("#page").style.padding="";$("#body").classList.toggle("full",v!=="auto");$("#rp").style.display=v==="auto"?"":"none";$("#topactions").innerHTML="";
+  ({automations:showAutos,auto:showAuto,inbox:showInbox,agent:showAgent,connectors:showConnectors,knowledge:showKnowledge,overview:showOverview})[v]()}
+function showAutos(){
+  $("#crumb").innerHTML="<b>Automations</b>";
+  const learned=S.learned?`<div class="tile" data-open="claim"><div class="nh">${logo("brain")}<h3>SOP: quality chargeback</h3><span class="status st-new">Written by agent, merged by owner</span></div><p>Learned from the first dispute: which records to pull, how to price the risk, and to offer a joint re-test before any deduction. Chargeback defence now follows it.</p><div class="logos">${logo("brain")}${logo("gate")}${logo("human")}</div></div>`:"";
+  $("#page").innerHTML=`<h1>Automations</h1><p class="lead">Each automation starts from something the plant already produces, runs on the agent, writes its records into one twin, and stops for a person wherever money is decided. Approve is the merge.</p><div class="grid">${Object.entries(AUTOS).map(([k,a])=>`<div class="tile" data-open="${k}"><div class="nh">${logo(a.nodes[0].c)}<h3>${esc(a.name)}</h3><span class="status st-ok">Active</span></div><p>${esc(a.desc)}</p><div class="logos">${[...new Set(a.nodes.map(n=>n.c))].map(logo).join("")}</div><p style="margin-top:10px">Trigger: ${esc(a.trigger)} · ${a.nodes.length} steps · ${S.runs[k]} merged runs</p></div>`).join("")}${learned}</div>`;
+  $$("[data-open]").forEach(t=>t.onclick=()=>setView("auto",t.dataset.open))}
+function showAuto(){
+  const a=AUTOS[S.auto];$("#crumb").innerHTML=`Automations / <b>${esc(a.name)}</b>`;
+  $("#topactions").innerHTML=(S.auto==="claim"?`<select class="btn" id="sample">${Object.entries(SAMPLES).map(([k,s])=>`<option value="${k}" ${S.sample===k?"selected":""}>${s.label}</option>`).join("")}</select> `:"")+`<button class="btn" id="resetbtn">Reset data</button> <button class="btn pri" id="runbtn">Run with sample event</button>`;
+  if($("#sample"))$("#sample").onchange=e=>S.sample=e.target.value;
+  $("#runbtn").onclick=async()=>{if(S.running)return;S.running=true;$("#runbtn").disabled=true;try{await(S.auto==="truck"?runTruck():runClaim())}catch(e){log("err","Run stopped",esc(e.message),"fail")}finally{S.running=false;if($("#runbtn"))$("#runbtn").disabled=false;counts()}};
+  $("#resetbtn").onclick=resetAll;
+  drawCanvas();drawRP()}
+function showInbox(){
+  $("#crumb").innerHTML="<b>Inbox</b>";
+  const h=approvalsHtml();
+  $("#page").innerHTML=`<h1>Inbox</h1><p class="lead">Decisions that need a person. Everything else ran on its own. Approving here merges the twin into the brain; discarding destroys it.</p><div style="max-width:720px">${h||`<div class="card" style="color:var(--ink-3)">Nothing waiting. Run an automation to see approvals land here.</div>`}</div>`;bindApprovals()}
+function showAgent(){
+  $("#crumb").innerHTML="<b>Agent</b>";const cf=S.cfg;
+  $("#page").innerHTML=`<h1>Plant agent</h1><p class="lead">One agent works every automation. It reads what arrives, drafts records and messages, and never decides a price or approves money. It has no write access to the brain: its records go into a twin and reach main only through the gate.</p>
+   <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(320px,1fr))">
+   <div class="card"><div class="sec" style="margin-top:0">Model</div><div class="nh">${logo("ollama")}<b>${esc(cf.model&&cf.llm_reachable!==false?cf.model:"No model on this server (rules)")}</b></div><p style="color:var(--ink-3);font-size:12px">${cf.model&&cf.llm_reachable!==false?"Open weights through Ollama on hardware the owner controls.":"Set TWIN_AGENT=auto with Ollama reachable to switch the voice note and the dispute draft from rules to a model."}</p>
+     <div class="sec">Speech</div><div class="nh">${logo("whisper")}<b>${esc(connStatus("whisper")[0])}</b></div></div>
+   <div class="card"><div class="sec" style="margin-top:0">Brain</div><div class="nh">${logo("brain")}<b>Markdown records under git, owned by the plant</b></div><p style="color:var(--ink-3);font-size:12px" id="memcount"></p>
+     <div class="sec">Guardrails</div><p style="font-size:13px;margin:0">Prices, grading and payments stay with people. Every record the agent writes is proven by Twin Gate on a branch and inside a forked sandbox with egress denied, and merged only when a person approves. Tally is never a live dependency.</p></div>
+   <div class="card"><div class="sec" style="margin-top:0">Learned procedures</div>${S.learned?`<div class="nh">${logo("brain")}<b>SOP: quality chargeback</b><span class="status st-new">Merged</span></div><p style="color:var(--ink-3);font-size:12px">Written in the same twin as the first dispute, merged when the owner approved.</p>`:`<p style="color:var(--ink-3);font-size:13px">None yet. Run Chargeback defence once and approve it.</p>`}</div>
+   </div>`;
+  get("/api/plant/brain").then(g=>{$("#memcount").textContent=`${g.nodes.length} records, ${g.edges.length} links between them`})}
+function showConnectors(){
+  $("#crumb").innerHTML="<b>Connectors</b>";
+  $("#page").innerHTML=`<h1>Connectors</h1><p class="lead">The apps and devices the plant already runs on. Nobody on the floor installs anything new. In this demo the channels are simulated; the twin, the sandbox, the checks and the merge are real.</p><div class="grid">${Object.keys(CONN).map(k=>{const c=CONN[k],[st,cls]=connStatus(k);return `<div class="tile"><div class="nh">${logo(k)}<h3>${esc(c.name)}</h3><span class="status st-${cls}">${esc(st)}</span></div><p>${esc(c.desc)}</p>${c.used?`<p style="color:var(--ink-2)">${esc(c.used)}</p>`:""}</div>`}).join("")}</div>`}
+const TYPEN={ticket:"Scale tickets",settlement:"Grower settlements",vendor:"Growers",salesorder:"Sales orders",shipment:"Shipments",customer:"Customers",contact:"Contacts",chargeback:"Chargebacks",sop:"Procedures"};
+async function showKnowledge(){
+  $("#crumb").innerHTML="<b>Knowledge</b>";const g=await get("/api/plant/brain");
+  const groups={};g.nodes.forEach(n=>(groups[n.type]=groups[n.type]||[]).push(n));
+  const other=Object.keys(groups).filter(t=>!TYPEN[t]);
+  $("#page").innerHTML=`<h1>Knowledge</h1><p class="lead">Every record is a markdown file under git that the plant keeps. ${g.nodes.length} records on main, ${g.edges.length} links. Records merged since the reset are marked. Twins in flight are not here: they are on the <a href="/" target="_blank" rel="noopener">review page</a>.</p><div class="card" style="padding:0">${[...Object.keys(TYPEN).filter(t=>groups[t]),...other].map(t=>`<div class="sec" style="padding:0 12px">${TYPEN[t]||t}</div>${groups[t].map(n=>`<div class="row" data-id="${n.id}"><b>${esc(n.title)}</b><span class="muted">${esc(n.id)}.md</span>${S.seed.has(n.id)?"":`<span class="status st-new">merged</span>`}</div>`).join("")}`).join("")}</div>`;
+  $$(".row").forEach(r=>r.onclick=async()=>{const p=await get("/api/page/"+r.dataset.id+".md");$("#modaltext").textContent=p.text;$("#modal").classList.add("show")})}
+function showOverview(){
+  $("#crumb").innerHTML="<b>Parties and channels</b>";
+  const parties=[["Truck scale","sms","SMS"],["QC grader","whatsapp","WhatsApp voice"],["Grower","whatsapp","WhatsApp"],["Accounts","tally","TallyPrime"],["Owner","whatsapp","WhatsApp"],["Broker","gmail","Gmail or WhatsApp"],["Spinning mill","gmail","only via the broker"]];
+  const cx=360,cy=250,R=190;
+  $("#page").innerHTML=`<h1>Parties and channels</h1><p class="lead">Seven parties never share an app. Each keeps its own channel; the plant brain is the one place they meet, and the one memory they all feed. Between the agent and that memory stands the gate.</p>
+  <div style="position:relative;width:720px;height:520px">
+   <svg width="720" height="520" style="position:absolute">${parties.map((p,i)=>{const a=-Math.PI/2+i*2*Math.PI/parties.length,x=cx+R*Math.cos(a),y=cy+R*Math.sin(a);return `<line x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" stroke="#cfd0d6" stroke-width="1.5" ${i===6?'stroke-dasharray="5 5"':""}/>`}).join("")}</svg>
+   <div class="card" style="position:absolute;left:${cx-100}px;top:${cy-52}px;width:200px;text-align:center;border-color:var(--gate)"><div class="nh" style="justify-content:center">${logo("brain")}<b>Plant brain</b></div><div style="color:var(--ink-3);font-size:12px">one agent · one memory</div><div style="color:var(--gate);font-size:11px;margin-top:4px">${logo("gate")} Twin Gate in front of every write</div></div>
+   ${parties.map((p,i)=>{const a=-Math.PI/2+i*2*Math.PI/parties.length,x=cx+R*Math.cos(a),y=cy+R*Math.sin(a);return `<div class="card" style="position:absolute;left:${x-80}px;top:${y-28}px;width:160px;padding:8px 10px"><div class="nh">${logo(p[1])}<b style="font-size:13px">${p[0]}</b></div><div style="color:var(--ink-3);font-size:11px;margin-top:2px">${p[2]}</div></div>`}).join("")}
+  </div>`}
+
+async function counts(){
+  const g=await get("/api/plant/brain");
+  $("#c-know").textContent=g.nodes.length;$("#c-conn").textContent=Object.keys(CONN).length;$("#c-auto").textContent=S.learned?3:2;
+  const open=S.approvals.filter(a=>!a.done).length;$("#c-inbox").textContent=open||"";$("#c-inbox").classList.toggle("hot",open>0);
+  try{const tw=await get("/api/twins");$("#c-twins").textContent=tw.twins.filter(t=>!["approved","rejected"].includes(t.status)).length||""}catch(e){}
+}
+async function infra(){S.cfg=await get("/api/plant/config");const cf=S.cfg;const model=cf.model&&cf.llm_reachable!==false;
+  $("#infra").innerHTML=`<div><span class="dot ${model?"":"warn"}"></span><b>${esc(model?cf.model:"Rules only")}</b></div><div>${esc(model?"open model, owner's hardware":"no model on this server")}</div><div><span class="dot ${cf.sandbox?"":"warn"}"></span>${cf.sandbox?"sandbox forks on":"branch twins only"}</div><div><span class="dot ${cf.gbrain?"":"warn"}"></span>GBrain ${cf.gbrain?"on":"not installed"}</div><div style="margin-top:6px">Synthetic data</div>`}
+async function resetAll(){$("#crumb").innerHTML="<b>Resetting the brain to the seed...</b>";await post("/api/reset");S.node={};S.out={};S.log=[];S.approvals=[];S.runs={truck:0,claim:0};S.learned=false;const g=await get("/api/plant/brain");S.seed=new Set(g.nodes.map(x=>x.id));await infra();counts();setView(S.view,S.auto)}
+
+$$(".nav[data-view]").forEach(n=>n.onclick=()=>setView(n.dataset.view));
+$$(".tab").forEach(t=>t.onclick=()=>{S.tab=t.dataset.tab;drawRP()});
+$("#close").onclick=()=>$("#modal").classList.remove("show");
+(async()=>{await infra();const g=await get("/api/plant/brain");S.seed=new Set(g.nodes.map(x=>x.id));counts();const q=new URLSearchParams(location.search);if(q.get("sample")&&SAMPLES[q.get("sample")])S.sample=q.get("sample");
+  if(q.get("view"))setView(q.get("view"),q.get("auto")||"truck");else setView("automations");
+  if(q.get("run")){setView("auto",q.get("run"));await(q.get("run")==="truck"?runTruck():runClaim());if(q.get("approve")){for(const a of S.approvals.filter(a=>!a.done)){a.done=true;await a.fn()}S.tab="run";drawRP()}}})();
+</script>
+</body>
+</html>

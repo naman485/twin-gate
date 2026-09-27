@@ -360,14 +360,18 @@ def propose(task: str, inject_error: bool) -> str:
     return tid
 
 
-def propose_start(task: str, inject_error: bool) -> str:
-    """Record the proposal and hand back its id at once. Status is `working` until propose_run ends."""
+def propose_start(task: str, inject_error: bool, edits: list[dict] | None = None, agent: str | None = None) -> str:
+    """Record the proposal and hand back its id at once. Status is `working` until propose_run ends.
+
+    With `edits`, the records come from an outside workflow (the plant example) and the built-in agent
+    is not run; the twin, the checks, the sandbox and the log are the same."""
     ensure_brain()
     tid = "tg-" + secrets.token_hex(2)
     st = {"id": tid, "task": task, "created": now(), "status": "working", "inject_error": bool(inject_error),
-          "log": [], "sandbox": None, "checks": [], "changed": [], "agent": None}
+          "log": [], "sandbox": None, "checks": [], "changed": [], "agent": None,
+          "supplied": {"edits": edits, "agent": agent or "workflow"} if edits else None}
     save(st)
-    log(st, "member", "proposed", task=task)
+    log(st, "member", "proposed", task=task, records=[e["path"] for e in edits] if edits else None)
     return tid
 
 
@@ -391,7 +395,10 @@ def _propose_work(st: dict, inject_error: bool):
     git("worktree", "add", "-q", "-b", f"twin/{tid}", str(wt), "main")
     log(st, "twin-gate", "created twin", branch=f"twin/{tid}", worktree=str(wt))
 
-    edits, agent = run_agent(task, inject_error)
+    if st.get("supplied"):
+        edits, agent = {"edits": st["supplied"]["edits"], "note": task}, st["supplied"]["agent"]
+    else:
+        edits, agent = run_agent(task, inject_error)
     changed = [e["path"] for e in edits["edits"]]
     base_text = {rel: read_page(rel, BRAIN) for rel in changed}
     for e in edits["edits"]:

@@ -32,7 +32,7 @@
 <body>
 <div class="wrap">
   <h1>Twin Gate</h1>
-  <p class="sub">The agent works in a live twin of the brain. Every action is on the log. Production takes only what the twin proved, and only when you approve it.</p>
+  <p class="sub">The agent works in a live twin of the brain. Every action is on the log. Production takes only what the twin proved, and only when you approve it. <a href="/plant" style="color:var(--acc)">See it inside a plant's automations</a>.</p>
   <div class="grid">
     <div>
       <div class="panel">
@@ -119,7 +119,7 @@ async function run(injectError) {
   $("#status").textContent = "Starting a twin.";
   $("#go").disabled = $("#goErr").disabled = $("#reset").disabled = true;
   try {
-    const started = await api("/api/propose", {task: $("#task").value, inject_error: injectError});
+    const started = await api("/api/propose", {task: $("#task").value, inject_error: injectError, async: true});
     await refresh();
     // The server answers at once; the work takes 15 to 40 s. Poll the twin and redraw the log as it grows.
     for (let i = 0; i < 150; i++) {

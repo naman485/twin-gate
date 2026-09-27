@@ -86,7 +86,8 @@ every push to `main`. It uses the rules agent (no Ollama in a 1 GB container) an
 sandboxes when the deployment carries a sandbox key.
 
 A proposal takes 15 to 40 s, longer than the platform edge keeps one HTTP request open, so the
-page starts the twin, gets its id back at once, and polls it while the log grows. The base
+page asks for a background run (`"async": true`), gets the twin id back at once, and polls it while
+the log grows. Without that flag the call blocks until the gate has decided, which scripts expect. The base
 sandbox is built when the server boots and rebuilt after every approve or reset, so it always
 mirrors `main`; the first run after a deploy waits for it.
 
