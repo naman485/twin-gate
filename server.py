@@ -34,6 +34,13 @@ def reset_brain():
         shutil.rmtree(tg.BRAIN)
     shutil.copytree(seed, tg.BRAIN)
     for p in tg.STATE.glob("tg-*.json"):
+        st = json.loads(p.read_text())
+        sb = st.get("sandbox") or {}
+        if sb.get("id") and st.get("status") not in ("approved", "rejected"):
+            try:
+                tg.sbx.destroy(sb["id"])
+            except tg.sbx.SandboxError:
+                pass
         p.unlink()
     tg.ensure_brain()
     return {"ok": True}

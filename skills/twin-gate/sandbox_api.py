@@ -34,6 +34,7 @@ _load_env()
 BASE = os.environ.get("CREATEOS_SANDBOX_BASE_URL", "https://api.sb.createos.sh").rstrip("/")
 KEY = os.environ.get("CREATEOS_SANDBOX_API_KEY", "")
 SHAPE = os.environ.get("CREATEOS_SANDBOX_SHAPE", "s-1vcpu-1gb")
+ROOTFS = os.environ.get("CREATEOS_SANDBOX_ROOTFS", "devbox:1")
 # Deny-by-default egress: once any rule is set, everything else is dropped in-kernel.
 # A loopback entry gives the twin a rule and no route out.
 NO_EGRESS = ["127.0.0.1"]
@@ -83,7 +84,7 @@ def shapes():
 
 
 def create(name: str, egress=None, envs=None, shape=None, auto_pause=3600):
-    body = {"shape": shape or SHAPE, "name": name, "egress": NO_EGRESS if egress is None else egress,
+    body = {"shape": shape or SHAPE, "rootfs": ROOTFS, "name": name, "egress": NO_EGRESS if egress is None else egress,
             "auto_pause_after_seconds": auto_pause}
     if envs:
         body["envs"] = envs
@@ -111,7 +112,10 @@ def wait(sid: str, want=("running",), timeout=120):
 
 def exec(sid: str, cmd: str, args=None, timeout_ms=60000):
     body = {"cmd": cmd, "args": args or [], "timeout_ms": timeout_ms}
-    return _req("POST", f"/v1/sandboxes/{sid}/exec", body=body, timeout=timeout_ms / 1000 + 15)
+    out = _req("POST", f"/v1/sandboxes/{sid}/exec", body=body, timeout=timeout_ms / 1000 + 15)
+    if isinstance(out, dict) and isinstance(out.get("result"), dict):
+        res = dict(out["result"]); res["exec_ms"] = out.get("exec_ms"); return res
+    return out
 
 
 def sh(sid: str, script: str, timeout_ms=60000):
