@@ -48,7 +48,12 @@ def init(brain: Path) -> dict:
 
 def sync(brain: Path) -> dict:
     """Commit-driven incremental sync: only what approve merged into main is indexed."""
-    return _run(["sync", "--repo", str(brain), "--json"], timeout=300, cwd=str(brain))
+    res = _run(["sync", "--repo", str(brain), "--no-pull", "--json"], timeout=300, cwd=str(brain))
+    if not res.get("ok"):
+        imp = _run(["import", ".", "--no-embed"], timeout=300, cwd=str(brain))
+        imp["fallback"] = "import"; imp["sync_error"] = (res.get("stderr") or res.get("stdout") or res.get("reason") or "")[-200:]
+        return imp
+    return res
 
 
 def search(query: str, limit=5) -> dict:
