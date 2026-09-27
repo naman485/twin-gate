@@ -41,8 +41,8 @@ python3 twingate.py approve tg-xxxx
 
 ## The sample brain
 
-`brain/` starts from `brain-seed/`: a cotton gin's records, synthetic, designed around a working
-gin that is not named. Sales orders, shipments, customers, a broker. The demo task drafts a
+`brain/` starts from `brain-seed/`: a textile manufacturer's records, synthetic, designed around a working
+plant that is not named. Sales orders, shipments, customers, a broker. The demo task drafts a
 chargeback dispute from a sales order and a shipment; the `net_kg` on the draft must reconcile
 with the shipment page.
 

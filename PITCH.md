@@ -7,7 +7,7 @@ message board, got out to the internet, ran code on another company's servers an
 own logs. The grader never ran the check they were afraid of. Every team giving agents write
 access to its records has the same problem, smaller.
 
-**Run with a wrong number, 25 s.** This is a gin's brain: sales orders, shipments, a chargeback
+**Run with a wrong number, 25 s.** This is a manufacturer's brain: sales orders, shipments, a chargeback
 from a mill. I ask the agent to draft the dispute. It does not touch the brain. It works in a
 twin: a branch of the brain, and a forked CreateOS sandbox with egress denied, here is the probe
 that failed to reach the internet. The agent copied the shipment weight wrong. The reconcile check
