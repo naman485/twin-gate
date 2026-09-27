@@ -49,6 +49,11 @@
         <div id="twins"></div>
       </div>
       <div class="panel" style="margin-top:16px">
+        <h2>Ask GBrain</h2>
+        <div class="row" style="margin-top:0"><input id="q" value="short staple chargeback INV-102" style="flex:1"><button id="ask" class="secondary">Recall</button></div>
+        <pre id="recall" class="mono" style="margin-top:8px">GBrain recall runs against the brain's index, which moves only on approve.</pre>
+      </div>
+      <div class="panel" style="margin-top:16px">
         <h2>Main branch of the brain</h2>
         <pre id="head" class="mono"></pre>
       </div>
@@ -68,7 +73,7 @@ async function api(path, body) {
 }
 async function refresh() {
   const d = await api("/api/twins");
-  $("#status").textContent = (d.sandbox ? "Sandbox: CreateOS, forked per twin, egress denied." : "Sandbox: off (no CREATEOS_SANDBOX_API_KEY). Twin is a git branch only.");
+  $("#status").textContent = (d.sandbox ? "Sandbox: CreateOS, forked per twin, egress denied." : "Sandbox: off (no CREATEOS_SANDBOX_API_KEY). Twin is a git branch only.") + (d.gbrain ? " GBrain: on." : " GBrain: CLI not found.");
   $("#head").textContent = d.head || "";
   $("#twins").innerHTML = d.twins.slice().reverse().map(t => `<div class="twin" data-id="${t.id}"><b>${t.id}</b><span class="pill ${t.status}">${t.status}</span><div class="status">${esc(t.task)}</div></div>`).join("") || '<div class="status">No twins yet.</div>';
   document.querySelectorAll(".twin").forEach(el => el.onclick = () => show(el.dataset.id));
@@ -105,6 +110,7 @@ async function run(injectError) {
   catch (e) { $("#status").textContent = "Error: " + e.message; }
   finally { $("#go").disabled = $("#goErr").disabled = false; }
 }
+$("#ask").onclick = async () => { $("#recall").textContent = "Asking GBrain."; try { const r = await api("/api/gbrain/search?q=" + encodeURIComponent($("#q").value)); $("#recall").textContent = r.available ? (typeof r.results === "string" ? r.results : JSON.stringify(r.results, null, 1)).slice(0, 1500) || (r.stderr || "no results") : "gbrain CLI not installed on this machine."; } catch (e) { $("#recall").textContent = "Error: " + e.message; } };
 $("#go").onclick = () => run(false);
 $("#goErr").onclick = () => run(true);
 $("#reset").onclick = async () => { await api("/api/reset", {}); current = null; $("#detail").innerHTML = '<h2>Review</h2><div class="status">Brain reset to the seed.</div>'; await refresh(); };

@@ -19,7 +19,11 @@ Agents want to write to it. Twin Gate makes that safe without slowing the agent 
    resolve, declared figures reconcile with their source pages, no new outbound URLs, no key
    material. A failed check blocks approval.
 4. **Approve.** The owner sees diff, checks and log on one page and merges with one click.
+   The merge is synced into GBrain, so the brain's memory moves only when the gate opens.
    Reject discards the branch and destroys the sandbox. Nothing reaches main another way.
+
+When the model's first attempt fails a check, the failed checks are fed back to it and it
+retries once inside the same twin; both attempts stay on the log.
 
 ## Run
 
@@ -55,9 +59,13 @@ approve step is the human step.
 
 ## GBrain
 
-The brain is a [GBrain](https://gbrain.io) memory folder: plain markdown, typed pages, `[[links]]`, on a machine the
-team owns. Twin Gate adds one thing GBrain does not have: a way for agents to change it that a
-person can check before it counts.
+The brain is a [GBrain](https://gbrain.io) content root: plain markdown, typed pages, `[[links]]`, on a machine the
+team owns, indexed by a keyless local GBrain (`gbrain init --pglite --no-embedding`, then
+`gbrain import`). Approve runs `gbrain sync --repo brain`, which is commit-driven, so only what
+the gate merged is ever indexed. The page has an "Ask GBrain" box: recall before approve knows
+nothing about the change; recall after approve returns the new page first. Twin Gate adds the one
+thing GBrain does not have: a way for agents to change the brain that a person checks before it
+counts.
 
 ## Honest limits
 

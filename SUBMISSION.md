@@ -12,10 +12,11 @@ paused [CreateOS Sandbox](https://createos.sh/docs/Sandbox/Overview/) holding th
 The agent edits there. Every action goes on a hash-chained log. Five checks run on the twin and
 again inside the sandbox: front matter, links, figures reconcile with their source pages, no new
 outbound URLs, no key material. The owner sees diff, checks and log on one page and approves
-with one click, which merges the branch and destroys the sandbox. A failed check greys out
-approve.
+with one click, which merges the branch, syncs the merge into GBrain and destroys the sandbox.
+A failed check greys out approve. If the model fails a check, the failures go back to it and it
+retries once in the same twin.
 
-**Built with.** [GBrain](https://gbrain.io) (the brain is a GBrain memory folder of typed markdown pages), [QM](https://qm.ycombinator.com) (shipped
+**Built with.** [GBrain](https://gbrain.io) (a keyless local GBrain indexes the brain; `gbrain sync` runs on approve, so recall knows a change only after the gate), [QM](https://qm.ycombinator.com) (shipped
 as a [skill pack](https://github.com/yc-software/qm/blob/main/docs/skill-registry.md) that any QM deployment imports from this repo; pairs with QM's Strict posture),
 [CreateOS Sandbox](https://createos.sh/docs/Sandbox/Overview/) (fork from a paused base, egress allowlist set to loopback), [Ollama](https://ollama.com) with
 [qwen2.5:7b](https://ollama.com/library/qwen2.5) on the laptop, with a rules fallback so the demo survives a dead model. Standard
@@ -23,8 +24,8 @@ library Python, no framework.
 
 **Demo.** Reset. Ask for a chargeback dispute with a wrong weight: the twin runs, the reconcile
 check fails against the shipment page, approve is disabled. Ask again: five checks pass twice,
-approve, main moves once. The page shows the forked sandbox id, its egress list and the probe
-that failed to reach the internet.
+approve, main moves once. Ask GBrain before and after: nothing, then the new page. The page shows
+the forked sandbox id, its egress list and the probe that failed to reach the internet.
 
 **Why "own your intelligence".** A team's memory is only theirs if they can see what an agent did
 to it before it counts. Twin Gate is that gate, on files they own, on a machine they own, with a

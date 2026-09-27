@@ -14,8 +14,9 @@ that failed to reach the internet. The agent copied the shipment weight wrong. T
 catches it against the shipment page. Approve is greyed out. The log shows every step.
 
 **Run again, 20 s.** Same task. This time the figure reconciles, five checks pass locally and
-again inside the sandbox. Diff on the right. One click: approve. Main moves once, the twin is
-destroyed, the log is closed with a hash chain.
+again inside the sandbox. Diff on the right. Ask GBrain about the chargeback: nothing. One click:
+approve. Main moves once, the merge syncs into GBrain, the twin is destroyed, the log is closed with
+a hash chain. Ask GBrain again: the new page, first result.
 
 **Why it fits, 20 s.** [GBrain](https://gbrain.io) keeps the team's memory as files the team owns. [QM](https://qm.ycombinator.com) lets agents work
 in it. Twin Gate is the QM skill that makes the agent go through a twin, and the page where the
@@ -29,6 +30,10 @@ before it counts. That is the gate.
 - Is the sandbox real? Yes: forked from a paused base sandbox on [CreateOS](https://createos.sh), egress allowlist set
   to loopback so the kernel drops everything else; the page shows the fork id and the probe.
 - Without a key? The twin is a git branch and the page says so. Same checks, same log.
+- Is GBrain doing anything? A keyless local GBrain indexes the brain; approve runs the
+  commit-driven sync, so the brain's memory cannot learn a change the gate rejected.
+- What if the model gets it wrong? The failed checks go back to it and it retries once in the
+  same twin; both attempts are on the log. The rules agent has no retry; it is the demo's fallback.
 - Arbitrary tasks? [Ollama](https://ollama.com) with [qwen2.5:7b](https://ollama.com/library/qwen2.5) on the laptop. The rules agent exists so the demo
   survives a dead model.
 - Post hackathon? The [skill pack](https://github.com/yc-software/qm/blob/main/docs/skill-registry.md) imports into any QM deployment; the CLI runs against any GBrain

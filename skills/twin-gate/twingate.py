@@ -35,6 +35,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import checks  # noqa: E402
 import sandbox_api as sbx  # noqa: E402
+import gbrain_bridge as gb  # noqa: E402
 
 BRAIN = Path(os.environ.get("TWIN_BRAIN", HERE / "brain")).resolve()
 STATE = Path(os.environ.get("TWIN_STATE", HERE / "state")).resolve()
@@ -183,6 +184,26 @@ Owner to approve before this leaves the building.
             "note": "Drafted CB-0003 from SO-1014 and SHP-0031" + (" (weight copied wrong on purpose)" if inject_error else "")}
 
 
+RETRY = """Your previous attempt was rejected by the gate. Failed checks:
+{failures}
+
+Fix only what failed. Return the corrected JSON with the full page content."""
+
+
+def ollama_retry(task: str, context: str, failures: str, previous: dict) -> dict | None:
+    import urllib.request
+    msgs = [{"role": "user", "content": PROMPT.format(task=task, index=pages_index(), context=context)},
+            {"role": "assistant", "content": json.dumps(previous)},
+            {"role": "user", "content": RETRY.format(failures=failures)}]
+    body = {"model": MODEL, "stream": False, "format": "json", "messages": msgs}
+    req = urllib.request.Request(OLLAMA + "/api/chat", data=json.dumps(body).encode(), headers={"Content-Type": "application/json"})
+    try:
+        with urllib.request.urlopen(req, timeout=180) as r:
+            return json.loads(json.loads(r.read())["message"]["content"])
+    except Exception:
+        return None
+
+
 def run_agent(task: str, inject_error: bool) -> tuple[dict, str]:
     mode = AGENT
     if mode in ("auto", "ollama") and not inject_error:
@@ -281,6 +302,21 @@ def propose(task: str, inject_error: bool) -> str:
 
     local_checks = checks.run_all(wt, changed, base_text)
     log(st, "twin-gate", "checks ran on twin branch", results=[(c["name"], c["ok"]) for c in local_checks])
+    if agent.startswith("ollama") and not all(c["ok"] for c in local_checks) and os.environ.get("TWIN_RETRIES", "1") != "0":
+        failures = "\n".join(f"- {c['name']}: {c['detail']}" for c in local_checks if not c["ok"])
+        ctx = "\n\n".join(read_page(rel, BRAIN) for rel in ("sales-orders/so-1014.md", "shipping/shp-0031.md", "customers/spinning-mill-a.md"))
+        fixed = ollama_retry(task, ctx, failures, edits)
+        if fixed and isinstance(fixed.get("edits"), list) and fixed["edits"]:
+            log(st, "agent", "read the failed checks and retried in the same twin", failed=[c["name"] for c in local_checks if not c["ok"]])
+            edits = fixed
+            changed = sorted(set(changed) | {e["path"] for e in edits["edits"]})
+            for e in edits["edits"]:
+                p = wt / e["path"]; p.parent.mkdir(parents=True, exist_ok=True); p.write_text(e["content"], encoding="utf-8")
+                log(st, "agent", "edited page in twin (retry)", path=e["path"], agent=agent, bytes=len(e["content"]))
+            git("add", "-A", cwd=wt)
+            git("-c", "user.name=twin-agent", "-c", "user.email=agent@twin", "commit", "-q", "-m", f"{tid}: retry after failed checks", cwd=wt)
+            local_checks = checks.run_all(wt, changed, base_text)
+            log(st, "twin-gate", "checks ran again on twin branch", results=[(c["name"], c["ok"]) for c in local_checks])
     try:
         sb = twin_in_sandbox(st, edits["edits"], changed)
     except sbx.SandboxError as e:
@@ -309,6 +345,10 @@ def approve(tid: str, who="owner"):
     st["full_diff"] = git("diff", "main", f"twin/{tid}")
     git("merge", "-q", "--no-ff", "-m", f"approve {tid}: {st.get('note', '')}", f"twin/{tid}")
     log(st, who, "approved and merged", branch=f"twin/{tid}")
+    if gb.available():
+        res = gb.sync(BRAIN)
+        st["gbrain"] = {"synced": res.get("ok", False), "out": (res.get("stdout") or res.get("stderr") or res.get("reason") or "")[-300:]}
+        log(st, "twin-gate", "synced into GBrain" if res.get("ok") else "GBrain sync failed", detail=st["gbrain"]["out"][-160:])
     cleanup(st)
     st["status"] = "approved"
     save(st)

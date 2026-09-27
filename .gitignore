@@ -2,3 +2,4 @@
 state/
 brain/.twins/
 __pycache__/
+.gbrain/
