@@ -7,7 +7,7 @@ version: 0.1.0
 
 # Twin Gate
 
-Use this skill whenever a task would change a page in the team's brain (the GBrain folder of
+Use this skill whenever a task would change a page in the team's brain (the [GBrain](https://gbrain.io) folder of
 markdown records): a new record, an edit to a figure, a drafted document that will be filed.
 
 ## What you do
@@ -18,8 +18,8 @@ markdown records): a new record, an edit to a figure, a drafted document that wi
    python3 skills/twin-gate/twingate.py propose --task "<the task, in one sentence>"
    ```
 
-   The command creates a twin (a branch of the brain and, when a CreateOS key is present, a
-   forked sandbox with egress denied), applies the change there, runs the checks, and prints
+   The command creates a twin (a branch of the brain and, when a [CreateOS](https://createos.sh) key is present, a
+   forked [sandbox](https://createos.sh/docs/Sandbox/Overview/) with egress denied), applies the change there, runs the checks, and prints
    a JSON result with the twin id, the changed pages and each check.
 
 2. Read the checks. If any check failed, fix the cause in a new proposal. Common causes:

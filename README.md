@@ -2,18 +2,18 @@
 
 The agent works in a live twin of the brain. Production takes only what the twin proved.
 
-Built at the YC Own Your Intelligence hackathon, 27 September 2026. Standard library Python,
-no framework. Runs on a laptop with Ollama, or with a rules fallback when no model is present.
+Built at the YC Own Your Intelligence hackathon, 27 September 2026, by [NodeOps](https://nodeops.network), the team behind [CreateOS](https://createos.sh). Standard library Python,
+no framework. Runs on a laptop with [Ollama](https://ollama.com), or with a rules fallback when no model is present.
 
 ## What it does
 
-A team keeps its records as a GBrain folder: markdown pages with front matter, under git.
+A team keeps its records as a [GBrain](https://gbrain.io) folder: markdown pages with front matter, under git.
 Agents want to write to it. Twin Gate makes that safe without slowing the agent down:
 
 1. **Propose.** `twingate.py propose --task "..."` creates a twin: a branch of the brain in a
-   git worktree, and, when `CREATEOS_SANDBOX_API_KEY` is set, a fork of a paused CreateOS
-   sandbox that holds the brain at its known state, with egress denied in the host kernel.
-2. **Work.** The agent (Ollama, or the rules fallback) makes its edits in the twin only. Every
+   git worktree, and, when `CREATEOS_SANDBOX_API_KEY` is set, a fork of a paused [CreateOS Sandbox](https://createos.sh/docs/Sandbox/Overview/)
+   VM that holds the brain at its known state, with egress denied in the host kernel.
+2. **Work.** The agent ([qwen2.5:7b](https://ollama.com/library/qwen2.5) on Ollama, or the rules fallback) makes its edits in the twin only. Every
    action is appended to a hash-chained log.
 3. **Prove.** Checks run on the twin, and again inside the sandbox: front matter present, links
    resolve, declared figures reconcile with their source pages, no new outbound URLs, no key
@@ -26,7 +26,7 @@ Agents want to write to it. Twin Gate makes that safe without slowing the agent 
 ```bash
 git clone https://github.com/naman485/twin-gate && cd twin-gate
 cp .env.example .env            # add CREATEOS_SANDBOX_API_KEY for the real twin; optional
-ollama pull qwen2.5:7b          # optional; without it the rules agent runs
+ollama pull qwen2.5:7b          # optional, https://ollama.com; without it the rules agent runs
 python3 server.py               # open http://localhost:8790
 ```
 
@@ -48,14 +48,14 @@ with the shipment page.
 
 ## QM
 
-`skills/twin-gate/SKILL.md` is a QM skill. Register this repository as a skill pack in QM's admin
+`skills/twin-gate/SKILL.md` is a [QM](https://qm.ycombinator.com) skill ([source](https://github.com/yc-software/qm)). Register this repository as a [skill pack](https://github.com/yc-software/qm/blob/main/docs/skill-registry.md) in QM's admin
 (Skill packs, pinned to a commit), import it, and any QM agent asked to change the brain proposes
 through a twin and hands the member the review link. Pair it with QM's Strict posture so the
 approve step is the human step.
 
 ## GBrain
 
-The brain is a GBrain memory folder: plain markdown, typed pages, `[[links]]`, on a machine the
+The brain is a [GBrain](https://gbrain.io) memory folder: plain markdown, typed pages, `[[links]]`, on a machine the
 team owns. Twin Gate adds one thing GBrain does not have: a way for agents to change it that a
 person can check before it counts.
 
@@ -63,5 +63,5 @@ person can check before it counts.
 
 - The rules agent only knows the demo task. Ollama handles arbitrary tasks, with the usual
   quality of a 7B model.
-- The sandbox fork carries the brain files; attached data disks are not forked yet.
+- The sandbox fork carries the brain files; attached data disks are not forked yet. Sandbox API: [SDK and reference](https://github.com/nodeops-app/createos-sandbox-sdk).
 - Approval is one click by whoever holds the page. Identity and roles are the deployment's job.
