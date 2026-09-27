@@ -1,0 +1,4 @@
+.env
+state/
+brain/.twins/
+__pycache__/

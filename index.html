@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Twin Gate</title>
+<style>
+  :root { --bg:#0f1412; --surface:#161c19; --line:#28322d; --ink:#e6ece7; --muted:#97a39c; --ok:#5cc3a3; --bad:#e07a7a; --warn:#e0b36a; --acc:#d98bb8; }
+  * { box-sizing:border-box } body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.5 -apple-system,"IBM Plex Sans",Segoe UI,sans-serif }
+  .wrap { max-width:1180px; margin:0 auto; padding:24px 20px 60px }
+  h1 { font-size:26px; margin:0 0 4px } .sub { color:var(--muted); margin:0 0 18px; max-width:70ch }
+  .mono { font-family:ui-monospace,Menlo,monospace; font-size:12.5px }
+  .grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.4fr); gap:16px } @media (max-width:900px){ .grid{grid-template-columns:1fr} }
+  .panel { background:var(--surface); border:1px solid var(--line); padding:16px }
+  .panel h2 { font-size:12px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); margin:0 0 10px; font-family:ui-monospace,Menlo,monospace }
+  button { font:inherit; font-weight:600; border:1px solid var(--line); background:var(--ink); color:var(--bg); padding:9px 14px; cursor:pointer } button.secondary { background:transparent; color:var(--ink) } button[disabled]{opacity:.5;cursor:default}
+  input { font:inherit; width:100%; padding:9px 10px; background:var(--bg); color:var(--ink); border:1px solid var(--line) }
+  .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:10px }
+  .twin { padding:10px 0; border-top:1px solid var(--line); cursor:pointer } .twin b { font-family:ui-monospace,Menlo,monospace }
+  .pill { display:inline-block; font:12px ui-monospace,Menlo,monospace; padding:1px 7px; border:1px solid var(--line); margin-left:6px }
+  .pill.passed{color:var(--ok);border-color:var(--ok)} .pill.failed{color:var(--bad);border-color:var(--bad)} .pill.approved{color:var(--acc);border-color:var(--acc)} .pill.rejected{color:var(--muted)}
+  .check { display:grid; grid-template-columns:22px 11rem minmax(0,1fr); gap:8px; padding:6px 0; border-top:1px solid var(--line); font-size:14px } .check .d { color:var(--muted) }
+  .ok{color:var(--ok)} .bad{color:var(--bad)}
+  pre { background:var(--bg); border:1px solid var(--line); padding:10px; overflow:auto; max-height:320px; font-size:12px; margin:0 }
+  .diff .add{color:var(--ok)} .diff .del{color:var(--bad)} .diff .hd{color:var(--muted)}
+  .log li { font-size:13px; padding:4px 0; border-top:1px solid var(--line); list-style:none } .log { padding:0; margin:0 } .log .who { color:var(--acc); font-family:ui-monospace,Menlo,monospace; margin-right:6px }
+  .status { color:var(--muted); font-size:13px }
+  .kv { display:grid; grid-template-columns:9rem minmax(0,1fr); gap:4px 10px; font-size:13.5px } .kv dt{color:var(--muted)} .kv dd{margin:0;word-break:break-all}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Twin Gate</h1>
+  <p class="sub">The agent works in a live twin of the brain. Every action is on the log. Production takes only what the twin proved, and only when you approve it.</p>
+  <div class="grid">
+    <div>
+      <div class="panel">
+        <h2>Propose</h2>
+        <input id="task" value="Draft the dispute for the short staple chargeback on INV-102">
+        <div class="row">
+          <button id="go">Run in a twin</button>
+          <button id="goErr" class="secondary" title="The agent copies a wrong weight, so the reconcile check fails">Run with a wrong number</button>
+          <button id="reset" class="secondary">Reset brain</button>
+        </div>
+        <div class="status" id="status">Loading.</div>
+      </div>
+      <div class="panel" style="margin-top:16px">
+        <h2>Twins</h2>
+        <div id="twins"></div>
+      </div>
+      <div class="panel" style="margin-top:16px">
+        <h2>Main branch of the brain</h2>
+        <pre id="head" class="mono"></pre>
+      </div>
+    </div>
+    <div>
+      <div class="panel" id="detail"><h2>Review</h2><div class="status">Pick a twin, or run one.</div></div>
+    </div>
+  </div>
+</div>
+<script>
+const $ = s => document.querySelector(s);
+let current = null;
+const esc = s => String(s ?? "").replace(/[&<>]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+async function api(path, body) {
+  const r = await fetch(path, body ? {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(body)} : {});
+  const j = await r.json(); if (!r.ok) throw new Error(j.error || r.statusText); return j;
+}
+async function refresh() {
+  const d = await api("/api/twins");
+  $("#status").textContent = (d.sandbox ? "Sandbox: CreateOS, forked per twin, egress denied." : "Sandbox: off (no CREATEOS_SANDBOX_API_KEY). Twin is a git branch only.");
+  $("#head").textContent = d.head || "";
+  $("#twins").innerHTML = d.twins.slice().reverse().map(t => `<div class="twin" data-id="${t.id}"><b>${t.id}</b><span class="pill ${t.status}">${t.status}</span><div class="status">${esc(t.task)}</div></div>`).join("") || '<div class="status">No twins yet.</div>';
+  document.querySelectorAll(".twin").forEach(el => el.onclick = () => show(el.dataset.id));
+}
+function diffHtml(d) {
+  return esc(d).split("\n").map(l => l.startsWith("+") && !l.startsWith("+++") ? `<span class="add">${l}</span>` : l.startsWith("-") && !l.startsWith("---") ? `<span class="del">${l}</span>` : l.startsWith("@@") || l.startsWith("diff") ? `<span class="hd">${l}</span>` : l).join("\n");
+}
+async function show(id) {
+  current = id;
+  const t = await api("/api/twin/" + id);
+  const sb = t.sandbox || {};
+  const checks = (t.checks || []).map(c => `<div class="check"><span class="${c.ok?"ok":"bad"}">${c.ok?"✓":"✗"}</span><span>${esc(c.name)}</span><span class="d">${esc(c.detail)}</span></div>`).join("");
+  const remote = sb.checks ? `<div class="status" style="margin-top:6px">Same checks inside the twin sandbox: ${sb.checks.ok ? '<span class="ok">passed</span>' : '<span class="bad">failed</span>'}.</div>` : "";
+  const sbx = sb.id ? `<dl class="kv"><dt>Twin sandbox</dt><dd class="mono">${esc(sb.id)}</dd><dt>Forked from</dt><dd class="mono">${esc(sb.base)}</dd><dt>Egress</dt><dd class="mono">${esc(JSON.stringify(sb.egress))} (deny by default)</dd><dt>Egress probe</dt><dd class="mono">${esc(sb.egress_probe || "")}</dd></dl>` : sb.error ? `<div class="status bad">Sandbox: ${esc(sb.error)}</div>` : `<div class="status">Twin ran as a git branch on this machine; no sandbox key.</div>`;
+  const log = (t.log || []).map(e => `<li><span class="who">${esc(e.actor)}</span>${esc(e.action)} <span class="status">${esc(Object.entries(e.detail||{}).filter(([k])=>k!=="results").map(([k,v])=>k+"="+(typeof v==="string"?v:JSON.stringify(v))).join("  ").slice(0,160))}</span></li>`).join("");
+  $("#detail").innerHTML = `
+    <h2>Review ${esc(id)} <span class="pill ${t.status}">${t.status}</span></h2>
+    <div class="status">${esc(t.task)} · agent: ${esc(t.agent)} · ${esc(t.note||"")}</div>
+    <h2 style="margin-top:14px">Checks</h2>${checks}${remote}
+    <h2 style="margin-top:14px">Where it ran</h2>${sbx}
+    <h2 style="margin-top:14px">Diff against main</h2><pre class="diff mono">${diffHtml(t.full_diff || t.diff || "")}</pre>
+    <h2 style="margin-top:14px">Log ${t.log_intact ? '<span class="ok">(chain intact)</span>' : '<span class="bad">(chain broken)</span>'}</h2><ul class="log">${log}</ul>
+    <div class="row">
+      <button id="approve" ${t.status==="passed"?"":"disabled"}>Approve and merge into main</button>
+      <button id="reject" class="secondary" ${["approved","rejected"].includes(t.status)?"disabled":""}>Reject</button>
+    </div>`;
+  $("#approve").onclick = async () => { await api("/api/approve/" + id, {who:"owner"}); await refresh(); await show(id); };
+  $("#reject").onclick = async () => { await api("/api/reject/" + id, {who:"owner"}); await refresh(); await show(id); };
+}
+async function run(injectError) {
+  $("#status").textContent = "Working in the twin.";
+  $("#go").disabled = $("#goErr").disabled = true;
+  try { const t = await api("/api/propose", {task: $("#task").value, inject_error: injectError}); await refresh(); await show(t.id); }
+  catch (e) { $("#status").textContent = "Error: " + e.message; }
+  finally { $("#go").disabled = $("#goErr").disabled = false; }
+}
+$("#go").onclick = () => run(false);
+$("#goErr").onclick = () => run(true);
+$("#reset").onclick = async () => { await api("/api/reset", {}); current = null; $("#detail").innerHTML = '<h2>Review</h2><div class="status">Brain reset to the seed.</div>'; await refresh(); };
+refresh();
+</script>
+</body>
+</html>
