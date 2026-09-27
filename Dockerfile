@@ -1,6 +1,14 @@
 FROM python:3.12-slim
 
-RUN apt-get update && apt-get install -y --no-install-recommends git ca-certificates && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends git ca-certificates curl unzip && rm -rf /var/lib/apt/lists/*
+
+# GBrain (optional at runtime): bun + a linked checkout, so the hosted copy has recall too.
+RUN curl -fsSL https://bun.sh/install | bash \
+    && git clone --depth 1 https://github.com/garrytan/gbrain.git /opt/gbrain \
+    && cd /opt/gbrain && /root/.bun/bin/bun install && /root/.bun/bin/bun link
+ENV PATH="/root/.bun/bin:${PATH}" \
+    GBRAIN_BIN=/root/.bun/bin/gbrain \
+    GBRAIN_HOME=/app/.gbrain
 
 WORKDIR /app
 COPY . /app
