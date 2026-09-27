@@ -131,8 +131,15 @@ Relevant pages:
 {context}
 
 Return ONLY a JSON object: {{"edits": [{{"path": "folder/page.md", "content": "full page text"}}], "note": "one sentence"}}.
-Rules: keep front matter; a figure copied from another page must be declared in front matter as
-reconcile: <field> = <page-path-without-.md>#<field>; do not add URLs; do not invent numbers."""
+Every page content MUST start exactly like this, then the body:
+---
+type: <kind, e.g. chargeback>
+title: <one line title>
+<other fields>
+---
+Rules: the front matter must contain both `type:` and `title:`; a figure copied from another page
+must be declared in front matter as reconcile: <field> = <page-path-without-.md>#<field> and copied
+exactly; link pages by path like [[shipping/shp-0031]]; do not add URLs; do not invent numbers."""
 
 
 def ollama_edits(task: str, context: str) -> dict | None:
@@ -187,7 +194,8 @@ Owner to approve before this leaves the building.
 RETRY = """Your previous attempt was rejected by the gate. Failed checks:
 {failures}
 
-Fix only what failed. Return the corrected JSON with the full page content."""
+Fix only what failed and return the corrected JSON with the full page content. Remember: the page
+must begin with a front matter block between --- lines that includes `type:` and `title:` lines."""
 
 
 def ollama_retry(task: str, context: str, failures: str, previous: dict) -> dict | None:

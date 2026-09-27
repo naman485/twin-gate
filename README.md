@@ -67,6 +67,15 @@ nothing about the change; recall after approve returns the new page first. Twin 
 thing GBrain does not have: a way for agents to change the brain that a person checks before it
 counts.
 
+## How it maps to the hackathon
+
+| Challenge | What Twin Gate does |
+| --- | --- |
+| Build with GBrain | The brain is a GBrain content root; a keyless local GBrain indexes it; `gbrain sync` runs on approve; recall on the page shows the change only after the gate |
+| Extend QM | A skill pack any deployment imports ([`qm/`](qm/)), paired with Strict posture: the agent proposes, the person approves |
+| Own your intelligence | Files the team owns, on a machine the team owns, a sandbox that cannot phone home, a log that cannot be edited |
+| UFO | The same skill shape works for UFO's team agents; a CreateOS carrier for UFO is a separate, in-progress piece |
+
 ## Honest limits
 
 - The rules agent only knows the demo task. Ollama handles arbitrary tasks, with the usual

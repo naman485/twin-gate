@@ -1,0 +1,8 @@
+{
+  "url": "https://github.com/naman485/twin-gate",
+  "ref": "main",
+  "trustTier": "third-party",
+  "config": {
+    "skillGlobs": ["skills/*/SKILL.md"]
+  }
+}
