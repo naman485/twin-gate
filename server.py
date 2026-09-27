@@ -15,6 +15,7 @@ import os
 import shutil
 import subprocess
 import sys
+import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
@@ -43,8 +44,20 @@ def reset_brain():
                 pass
         p.unlink()
     tg.ensure_brain()
+    tg.invalidate_base()
     gb = tg.gb.reset(tg.BRAIN) if tg.gb.available() else {"ok": False, "reason": "gbrain not installed"}
+    background(tg.warm_base)
     return {"ok": True, "gbrain": gb.get("ok", False)}
+
+
+def background(fn, *args):
+    threading.Thread(target=fn, args=args, daemon=True).start()
+
+
+def warm_gbrain():
+    """A fresh container has no GBrain index yet; build it from the brain so recall and approve-sync work at once."""
+    if tg.gb.available() and not Path(tg.gb.HOME).exists():
+        tg.gb.init(tg.BRAIN)
 
 
 class H(BaseHTTPRequestHandler):
@@ -64,6 +77,7 @@ class H(BaseHTTPRequestHandler):
             return self._send(200, PAGE.encode(), "text/html; charset=utf-8")
         if self.path == "/api/twins":
             return self._send(200, {"twins": tg.list_twins(), "sandbox": tg.sbx.available(), "gbrain": tg.gb.available(),
+                                    "base_ready": tg._base_marker().exists(),
                                     "brain": str(tg.BRAIN), "head": tg.git("log", "--oneline", "-5", check=False)})
         if self.path.startswith("/api/twin/"):
             try:
@@ -84,12 +98,16 @@ class H(BaseHTTPRequestHandler):
         body = json.loads(self.rfile.read(n) or b"{}") if n else {}
         try:
             if self.path == "/api/propose":
-                tid = tg.propose(body.get("task", "").strip() or "Draft the dispute for the short staple chargeback on INV-102",
-                                 bool(body.get("inject_error")))
-                return self._send(200, tg.review(tid))
+                # Answer at once with the twin id; the work runs in the background and the page polls
+                # /api/twin/<id>. A proposal takes 15 to 40 s, longer than the platform edge keeps a request open.
+                tid = tg.propose_start(body.get("task", "").strip() or "Draft the dispute for the short staple chargeback on INV-102",
+                                       bool(body.get("inject_error")))
+                background(tg.propose_run, tid)
+                return self._send(202, {"id": tid, "status": "working"})
             if self.path.startswith("/api/approve/"):
                 tid = self.path.rsplit("/", 1)[1]
                 tg.approve(tid, body.get("who", "owner"))
+                background(tg.warm_base)
                 return self._send(200, tg.review(tid))
             if self.path.startswith("/api/reject/"):
                 tid = self.path.rsplit("/", 1)[1]
@@ -106,5 +124,7 @@ class H(BaseHTTPRequestHandler):
 
 if __name__ == "__main__":
     tg.ensure_brain()
+    background(tg.warm_base)
+    background(warm_gbrain)
     print(f"Twin Gate on http://localhost:{PORT}  brain={tg.BRAIN}  sandbox={'on' if tg.sbx.available() else 'off (set CREATEOS_SANDBOX_API_KEY)'}")
     ThreadingHTTPServer(("0.0.0.0", PORT), H).serve_forever()

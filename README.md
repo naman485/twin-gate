@@ -85,6 +85,11 @@ A hosted copy runs on [CreateOS](https://createos.sh) from this repository, auto
 every push to `main`. It uses the rules agent (no Ollama in a 1 GB container) and forks real
 sandboxes when the deployment carries a sandbox key.
 
+A proposal takes 15 to 40 s, longer than the platform edge keeps one HTTP request open, so the
+page starts the twin, gets its id back at once, and polls it while the log grows. The base
+sandbox is built when the server boots and rebuilt after every approve or reset, so it always
+mirrors `main`; the first run after a deploy waits for it.
+
 [![Open the hosted demo](https://img.shields.io/badge/Open-hosted%20demo-0E6B55?style=for-the-badge)](https://production-twin-gate.tyzo.nodeops.app)
 [![Deploy your own on CreateOS](https://img.shields.io/badge/Deploy%20your%20own-CreateOS-111111?style=for-the-badge)](https://createos.sh/app/deploy/github?repo=naman485%2Ftwin-gate)
 

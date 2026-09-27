@@ -27,6 +27,7 @@ import secrets
 import subprocess
 import sys
 import tarfile
+import threading
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -42,6 +43,7 @@ STATE = Path(os.environ.get("TWIN_STATE", HERE / "state")).resolve()
 OLLAMA = os.environ.get("OLLAMA_URL", "http://localhost:11434").rstrip("/")
 MODEL = os.environ.get("TWIN_MODEL", "qwen2.5:7b")
 AGENT = os.environ.get("TWIN_AGENT", "auto")  # auto | ollama | rules
+_BASE_LOCK = threading.Lock()
 
 
 # ---------- helpers ----------
@@ -264,9 +266,45 @@ def brain_tar() -> bytes:
     return buf.getvalue()
 
 
-def base_sandbox(st: dict) -> str | None:
-    """A paused sandbox holding the brain at its known state. Forked per proposal."""
-    marker = STATE / "base-sandbox.json"
+def _base_marker() -> Path:
+    return STATE / "base-sandbox.json"
+
+
+def base_sandbox(st: dict | None = None) -> str | None:
+    """A paused sandbox holding main at its current state. Forked per proposal.
+
+    One base at a time: callers serialise on a lock so two proposals in flight never build two."""
+    with _BASE_LOCK:
+        return _base_sandbox(st)
+
+
+def warm_base() -> str | None:
+    """Build the base ahead of the first proposal (server start, after approve, after reset)."""
+    if not sbx.available():
+        return None
+    try:
+        return base_sandbox(None)
+    except sbx.SandboxError as e:
+        sys.stderr.write(f"warm_base: {e}\n")
+        return None
+
+
+def invalidate_base():
+    """Main moved (approve) or was replaced (reset): the base no longer mirrors it. Drop it."""
+    marker = _base_marker()
+    if not marker.exists():
+        return
+    try:
+        info = json.loads(marker.read_text())
+        marker.unlink()
+        if info.get("id"):
+            sbx.destroy(info["id"])
+    except (sbx.SandboxError, ValueError, OSError):
+        pass
+
+
+def _base_sandbox(st: dict | None) -> str | None:
+    marker = _base_marker()
     if marker.exists():
         info = json.loads(marker.read_text())
         try:
@@ -285,8 +323,9 @@ def base_sandbox(st: dict) -> str | None:
     sbx.sh(sid, "cd /twin && tar xzf brain.tgz && rm brain.tgz && ls")
     sbx.pause(sid)
     sbx.wait(sid, want=("paused",), timeout=90)
-    marker.write_text(json.dumps({"id": sid, "at": now()}))
-    log(st, "twin-gate", "base sandbox ready", sandbox=sid, note="brain uploaded at its known state, paused")
+    marker.write_text(json.dumps({"id": sid, "at": now(), "head": git("rev-parse", "--short", "HEAD", check=False).strip()}))
+    if st is not None:
+        log(st, "twin-gate", "base sandbox ready", sandbox=sid, note="brain uploaded at its known state, paused")
     return sid
 
 
@@ -315,11 +354,39 @@ def twin_in_sandbox(st: dict, edits: list[dict], changed: list[str]) -> dict | N
 
 
 def propose(task: str, inject_error: bool) -> str:
+    """Synchronous: start a twin and run it to the gate. The server runs the two halves apart."""
+    tid = propose_start(task, inject_error)
+    propose_run(tid)
+    return tid
+
+
+def propose_start(task: str, inject_error: bool) -> str:
+    """Record the proposal and hand back its id at once. Status is `working` until propose_run ends."""
     ensure_brain()
     tid = "tg-" + secrets.token_hex(2)
-    st = {"id": tid, "task": task, "created": now(), "status": "proposed", "log": [], "sandbox": None}
+    st = {"id": tid, "task": task, "created": now(), "status": "working", "inject_error": bool(inject_error),
+          "log": [], "sandbox": None, "checks": [], "changed": [], "agent": None}
     save(st)
     log(st, "member", "proposed", task=task)
+    return tid
+
+
+def propose_run(tid: str) -> str:
+    """Do the work for a started proposal. Any failure lands in the state as `error`, never as a hung request."""
+    st = load(tid)
+    try:
+        _propose_work(st, bool(st.get("inject_error")))
+    except Exception as e:  # noqa: BLE001  the page must always learn what happened
+        st["status"] = "error"
+        st["error"] = str(e)[:400]
+        save(st)
+        log(st, "twin-gate", "proposal failed", error=str(e)[:200])
+    return tid
+
+
+def _propose_work(st: dict, inject_error: bool):
+    tid = st["id"]
+    task = st["task"]
     wt = BRAIN / ".twins" / tid
     git("worktree", "add", "-q", "-b", f"twin/{tid}", str(wt), "main")
     log(st, "twin-gate", "created twin", branch=f"twin/{tid}", worktree=str(wt))
@@ -374,7 +441,10 @@ def propose(task: str, inject_error: bool) -> str:
 
 def review(tid: str) -> dict:
     st = load(tid)
-    st["full_diff"] = git("diff", "main", f"twin/{tid}") if st["status"] not in ("approved", "rejected") else st.get("full_diff", "")
+    if st["status"] in ("approved", "rejected"):
+        st["full_diff"] = st.get("full_diff", "")
+    else:
+        st["full_diff"] = git("diff", "main", f"twin/{tid}", check=False)
     st["log_intact"] = verify_log(st)
     return st
 
@@ -391,6 +461,7 @@ def approve(tid: str, who="owner"):
         st["gbrain"] = {"synced": res.get("ok", False), "out": (res.get("stdout") or res.get("stderr") or res.get("reason") or "")[-300:]}
         log(st, "twin-gate", "synced into GBrain" if res.get("ok") else "GBrain sync failed", detail=st["gbrain"]["out"][-160:])
     cleanup(st)
+    invalidate_base()
     st["status"] = "approved"
     save(st)
 

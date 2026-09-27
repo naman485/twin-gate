@@ -18,7 +18,8 @@
   .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:10px }
   .twin { padding:10px 0; border-top:1px solid var(--line); cursor:pointer } .twin b { font-family:ui-monospace,Menlo,monospace }
   .pill { display:inline-block; font:12px ui-monospace,Menlo,monospace; padding:1px 7px; border:1px solid var(--line); margin-left:6px }
-  .pill.passed{color:var(--ok);border-color:var(--ok)} .pill.failed{color:var(--bad);border-color:var(--bad)} .pill.approved{color:var(--acc);border-color:var(--acc)} .pill.rejected{color:var(--muted)}
+  .pill.passed{color:var(--ok);border-color:var(--ok)} .pill.failed{color:var(--bad);border-color:var(--bad)} .pill.approved{color:var(--acc);border-color:var(--acc)} .pill.rejected{color:var(--muted)} .pill.working{color:var(--acc);border-color:var(--acc);animation:blink 1.2s ease-in-out infinite} .pill.error{color:var(--bad);border-color:var(--bad)}
+  @keyframes blink { 50% { opacity:.45 } }
   .check { display:grid; grid-template-columns:22px 11rem minmax(0,1fr); gap:8px; padding:6px 0; border-top:1px solid var(--line); font-size:14px } .check .d { color:var(--muted) }
   .ok{color:var(--ok)} .bad{color:var(--bad)}
   pre { background:var(--bg); border:1px solid var(--line); padding:10px; overflow:auto; max-height:320px; font-size:12px; margin:0 }
@@ -65,7 +66,8 @@
 </div>
 <script>
 const $ = s => document.querySelector(s);
-let current = null;
+let current = null, busy = false;
+const sleep = ms => new Promise(r => setTimeout(r, ms));
 const esc = s => String(s ?? "").replace(/[&<>]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
 async function api(path, body) {
   const r = await fetch(path, body ? {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(body)} : {});
@@ -73,7 +75,7 @@ async function api(path, body) {
 }
 async function refresh() {
   const d = await api("/api/twins");
-  $("#status").textContent = (d.sandbox ? "Sandbox: CreateOS, forked per twin, egress denied." : "Sandbox: off (no CREATEOS_SANDBOX_API_KEY). Twin is a git branch only.") + (d.gbrain ? " GBrain: on." : " GBrain: CLI not found.");
+  if (!busy) $("#status").textContent = (d.sandbox ? "Sandbox: CreateOS, forked per twin, egress denied." + (d.base_ready ? " Base sandbox warm." : " Base sandbox builds on the first run.") : "Sandbox: off (no CREATEOS_SANDBOX_API_KEY). Twin is a git branch only.") + (d.gbrain ? " GBrain: on." : " GBrain: CLI not found.");
   $("#head").textContent = d.head || "";
   $("#twins").innerHTML = d.twins.slice().reverse().map(t => `<div class="twin" data-id="${t.id}"><b>${t.id}</b><span class="pill ${t.status}">${t.status}</span><div class="status">${esc(t.task)}</div></div>`).join("") || '<div class="status">No twins yet.</div>';
   document.querySelectorAll(".twin").forEach(el => el.onclick = () => show(el.dataset.id));
@@ -84,6 +86,7 @@ function diffHtml(d) {
 async function show(id) {
   current = id;
   const t = await api("/api/twin/" + id);
+  if (t.status === "working") { $("#status").textContent = `Working in the twin (${((Date.now() - Date.parse(t.created))/1000).toFixed(0)}s): ${t.log && t.log.length ? t.log[t.log.length-1].action : "starting"}.`; }
   const sb = t.sandbox || {};
   const checks = (t.checks || []).map(c => `<div class="check"><span class="${c.ok?"ok":"bad"}">${c.ok?"✓":"✗"}</span><span>${esc(c.name)}</span><span class="d">${esc(c.detail)}</span></div>`).join("");
   const remote = sb.checks ? `<div class="status" style="margin-top:6px">Same checks inside the twin sandbox: ${sb.checks.ok ? '<span class="ok">passed</span>' : '<span class="bad">failed</span>'}.</div>` : "";
@@ -92,7 +95,8 @@ async function show(id) {
   const log = (t.log || []).map(e => `<li><span class="status mono">+${((Date.parse(e.at) - t0)/1000).toFixed(1)}s</span> <span class="who">${esc(e.actor)}</span>${esc(e.action)} <span class="status">${esc(Object.entries(e.detail||{}).filter(([k])=>k!=="results").map(([k,v])=>k+"="+(typeof v==="string"?v:JSON.stringify(v))).join("  ").slice(0,160))}</span></li>`).join("");
   $("#detail").innerHTML = `
     <h2>Review ${esc(id)} <span class="pill ${t.status}">${t.status}</span></h2>
-    <div class="status">${esc(t.task)} · agent: ${esc(t.agent)} · ${esc(t.note||"")}</div>
+    <div class="status">${esc(t.task)} · agent: ${esc(t.agent || "")} · ${esc(t.note||"")}</div>
+    ${t.status === "error" ? `<div class="status bad" style="margin-top:6px">This proposal failed: ${esc(t.error || "unknown error")}</div>` : ""}
     <h2 style="margin-top:14px">Checks</h2>${checks}${remote}
     <h2 style="margin-top:14px">Where it ran</h2>${sbx}
     <h2 style="margin-top:14px">Diff against main</h2><pre class="diff mono">${diffHtml(t.full_diff || t.diff || "")}</pre>
@@ -101,20 +105,36 @@ async function show(id) {
       <button id="approve" ${t.status==="passed"?"":"disabled"}>Approve and merge into main</button>
       <button id="reject" class="secondary" ${["approved","rejected"].includes(t.status)?"disabled":""}>Reject</button>
     </div>`;
-  $("#approve").onclick = async () => { await api("/api/approve/" + id, {who:"owner"}); await refresh(); await show(id); };
-  $("#reject").onclick = async () => { await api("/api/reject/" + id, {who:"owner"}); await refresh(); await show(id); };
+  $("#approve").onclick = () => act("approve", id, "Merging into main and syncing GBrain.");
+  $("#reject").onclick = () => act("reject", id, "Rejecting and destroying the twin.");
+}
+async function act(verb, id, msg) {
+  $("#approve").disabled = $("#reject").disabled = true; $("#status").textContent = msg;
+  try { await api(`/api/${verb}/` + id, {who:"owner"}); }
+  catch (e) { $("#status").textContent = `Error on ${verb}: ${e.message}`; await sleep(2500); }
+  await refresh(); await show(id);
 }
 async function run(injectError) {
-  $("#status").textContent = "Working in the twin.";
-  $("#go").disabled = $("#goErr").disabled = true;
-  try { const t = await api("/api/propose", {task: $("#task").value, inject_error: injectError}); await refresh(); await show(t.id); }
-  catch (e) { $("#status").textContent = "Error: " + e.message; }
-  finally { $("#go").disabled = $("#goErr").disabled = false; }
+  busy = true;
+  $("#status").textContent = "Starting a twin.";
+  $("#go").disabled = $("#goErr").disabled = $("#reset").disabled = true;
+  try {
+    const started = await api("/api/propose", {task: $("#task").value, inject_error: injectError});
+    await refresh();
+    // The server answers at once; the work takes 15 to 40 s. Poll the twin and redraw the log as it grows.
+    for (let i = 0; i < 150; i++) {
+      const t = await api("/api/twin/" + started.id);
+      await show(started.id);
+      if (t.status !== "working") break;
+      await sleep(1500);
+    }
+  } catch (e) { $("#status").textContent = "Error: " + e.message; await sleep(3000); }
+  finally { busy = false; $("#go").disabled = $("#goErr").disabled = $("#reset").disabled = false; await refresh(); }
 }
 $("#ask").onclick = async () => { $("#recall").textContent = "Asking GBrain."; try { const r = await api("/api/gbrain/search?q=" + encodeURIComponent($("#q").value)); $("#recall").textContent = !r.available ? "gbrain CLI not installed on this machine." : (r.results && r.results.length) ? r.results.map((x, i) => `${i+1}. ${x.slug}  (${x.type})  ${x.title}`).join("\n") : "GBrain knows nothing about that yet."; } catch (e) { $("#recall").textContent = "Error: " + e.message; } };
 $("#go").onclick = () => run(false);
 $("#goErr").onclick = () => run(true);
-$("#reset").onclick = async () => { await api("/api/reset", {}); current = null; $("#detail").innerHTML = '<h2>Review</h2><div class="status">Brain reset to the seed.</div>'; await refresh(); };
+$("#reset").onclick = async () => { $("#status").textContent = "Resetting the brain to the seed."; try { await api("/api/reset", {}); current = null; $("#detail").innerHTML = '<h2>Review</h2><div class="status">Brain reset to the seed.</div>'; } catch (e) { $("#status").textContent = "Error on reset: " + e.message; await sleep(2500); } await refresh(); };
 refresh();
 </script>
 </body>
