@@ -86,9 +86,9 @@ every push to `main`. It uses the rules agent (no Ollama in a 1 GB container) an
 sandboxes when the deployment carries a sandbox key.
 
 [![Open the hosted demo](https://img.shields.io/badge/Open-hosted%20demo-0E6B55?style=for-the-badge)](https://production-twin-gate.tyzo.nodeops.app)
-[![Deploy your own on CreateOS](https://img.shields.io/badge/Deploy%20your%20own-CreateOS-111111?style=for-the-badge)](https://createos.sh)
+[![Deploy your own on CreateOS](https://img.shields.io/badge/Deploy%20your%20own-CreateOS-111111?style=for-the-badge)](https://createos.sh/app/deploy)
 
-To deploy your own: connect this repository on [createos.sh](https://createos.sh), keep
+To deploy your own: open [createos.sh/app/deploy](https://createos.sh/app/deploy), pick this repository, keep
 `hasDockerfile` on, port 3000, and set `CREATEOS_SANDBOX_API_KEY` in the environment if you want
 real twins. The `Dockerfile` in this repo is what the platform builds.
 
