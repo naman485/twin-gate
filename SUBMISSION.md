@@ -4,7 +4,7 @@
 
 **Repo.** https://github.com/naman485/twin-gate (public, Apache 2.0, built during hackathon hours on 27 Sep 2026)
 
-**Team.** Naman Kabra ([NodeOps](https://nodeops.network) / [CreateOS](https://createos.sh))
+**Team.** Naman Kabra, individual entry
 
 **What it is.** A QM skill plus a review page. When an agent is asked to change the team's [GBrain](https://gbrain.io)
 folder, it does not write to main. It proposes in a twin: a branch of the brain, and a fork of a

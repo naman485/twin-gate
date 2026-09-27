@@ -2,7 +2,7 @@
 
 The agent works in a live twin of the brain. Production takes only what the twin proved.
 
-Built at the YC Own Your Intelligence hackathon, 27 September 2026, by [NodeOps](https://nodeops.network), the team behind [CreateOS](https://createos.sh). Standard library Python,
+Built at the YC Own Your Intelligence hackathon, 27 September 2026, by Naman Kabra as an individual entry. The sandbox is [CreateOS Sandbox](https://createos.sh/docs/Sandbox/Overview/). Standard library Python,
 no framework. Runs on a laptop with [Ollama](https://ollama.com), or with a rules fallback when no model is present.
 
 ## What it does
