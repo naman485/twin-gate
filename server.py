@@ -13,6 +13,7 @@ from __future__ import annotations
 import json
 import os
 import shutil
+import signal
 import subprocess
 import sys
 import threading
@@ -52,6 +53,22 @@ def reset_brain():
 
 def background(fn, *args):
     threading.Thread(target=fn, args=args, daemon=True).start()
+
+
+def shutdown(signum, frame):
+    """The platform stops this container on every redeploy. Take our sandboxes with us: the base, and the
+    twins still open. A new container builds its own base at boot; nothing here is needed again."""
+    sys.stderr.write("shutdown: destroying this container's sandboxes\n")
+    for st_path in tg.STATE.glob("tg-*.json"):
+        try:
+            st = json.loads(st_path.read_text())
+            sb = st.get("sandbox") or {}
+            if sb.get("id") and st.get("status") not in ("approved", "rejected"):
+                tg.sbx.destroy(sb["id"])
+        except Exception:  # noqa: BLE001  best effort on the way out
+            pass
+    tg.invalidate_base()
+    raise SystemExit(0)
 
 
 def warm_gbrain():
@@ -124,6 +141,8 @@ class H(BaseHTTPRequestHandler):
 
 if __name__ == "__main__":
     tg.ensure_brain()
+    signal.signal(signal.SIGTERM, shutdown)
+    signal.signal(signal.SIGINT, shutdown)
     background(tg.warm_base)
     background(warm_gbrain)
     print(f"Twin Gate on http://localhost:{PORT}  brain={tg.BRAIN}  sandbox={'on' if tg.sbx.available() else 'off (set CREATEOS_SANDBOX_API_KEY)'}")
