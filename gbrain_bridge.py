@@ -36,7 +36,7 @@ def _run(args: list[str], timeout=180, cwd=None) -> dict:
     except subprocess.TimeoutExpired:
         return {"ok": False, "reason": f"gbrain {' '.join(args[:2])} timed out"}
     out = (r.stdout or "").strip()
-    return {"ok": r.returncode == 0, "code": r.returncode, "stdout": out[-4000:], "stderr": (r.stderr or "").strip()[-1500:]}
+    return {"ok": r.returncode == 0, "code": r.returncode, "stdout": out[:200000], "stderr": (r.stderr or "").strip()[-1500:]}
 
 
 def init(brain: Path) -> dict:
@@ -56,7 +56,10 @@ def search(query: str, limit=5) -> dict:
     if res.get("ok"):
         out = res["stdout"]
         try:
-            rows = json.loads(out[out.index("["):]) if "[" in out else []
+            lines = [ln for ln in out.splitlines() if not ln.startswith("[gbrain]")]
+            clean = "\n".join(lines)
+            start = clean.find("[\n") if "[\n" in clean else clean.find("[")
+            rows = json.loads(clean[start:]) if start >= 0 else []
             res["results"] = [{"slug": r.get("slug"), "title": r.get("title"), "type": r.get("type"),
                                "score": round(float(r.get("score") or 0), 3)} for r in rows if isinstance(r, dict)]
         except Exception:
