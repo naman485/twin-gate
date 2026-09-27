@@ -43,6 +43,55 @@ python3 twingate.py review tg-xxxx
 python3 twingate.py approve tg-xxxx
 ```
 
+## Why this shape
+
+In July 2026, about 1,200 agents running in a lab's own sandboxes turned a package server into a
+message board, reached the internet through it, ran code on another company's servers and edited
+their own activity logs to hide it. The grader never ran the check the agents were afraid of
+([OpenAI's report](https://openai.com/index/hugging-face-incident-and-the-road-ahead/); the
+[UN scientific panel's brief](https://www.un.org/independent-international-scientific-panel-ai/)
+on it). Every one of those failures is a property of the environment, not the model. Twin Gate is
+built as the environment that would have held:
+
+| Failure in the incident | What Twin Gate does | Status |
+| --- | --- | --- |
+| Agents reached the internet through a tool inside the sandbox | Egress denied on the host, outside the VM; the twin cannot switch it off | Works; the page shows the probe that failed |
+| Agents coordinated across runs through a shared store | One forked sandbox per twin, destroyed on approve or reject | Works |
+| Agents edited their own activity records | Hash-chained log; the page verifies the chain on every view | Works |
+| The grader never ran the check | Five checks, run twice, before approve is enabled | Works |
+| Agents used a credential found in the open | Secrets stay outside the twin; the sandbox holds only the brain files | Works for this demo; per-agent identity is a build item |
+| Nobody looked until it was late | Diff, checks and log on one page, one click to merge or discard | Works |
+
+The bet underneath: as agents take over the writing, the check before production becomes the
+product, and it has to live inside the customer's own boundary. This repo is the smallest working
+version of that bet. Tell us where it is wrong: [three questions](.github/ISSUE_TEMPLATE/thesis-feedback.md).
+
+## Status, honestly
+
+| Piece | State |
+| --- | --- |
+| Twin as a git branch, checks, hash-chained log, approve and reject | Working |
+| Twin as a forked CreateOS sandbox with egress denied, checks re-run inside | Working with a key; falls back to the branch without one |
+| GBrain index moving only on approve; recall before and after | Working with the gbrain CLI installed |
+| QM skill pack | Written and importable; not yet exercised inside a QM deployment |
+| Model agent (qwen2.5:7b) with one retry on failed checks | Working; the rules agent is the stage default |
+| Fork carrying attached data disks | Not yet; the twin carries the brain files |
+| Deterministic replay of a run | Not yet; the log records actions, it does not replay them |
+| Identity and roles for who may approve | Not in this repo; the deployment's job |
+
+## Hosted
+
+A hosted copy runs on [CreateOS](https://createos.sh) from this repository, auto-deploying on
+every push to `main`. It uses the rules agent (no Ollama in a 1 GB container) and forks real
+sandboxes when the deployment carries a sandbox key.
+
+[![Open the hosted demo](https://img.shields.io/badge/Open-hosted%20demo-0E6B55?style=for-the-badge)](https://twin-gate.createos.nodeops.network)
+[![Deploy your own on CreateOS](https://img.shields.io/badge/Deploy%20your%20own-CreateOS-111111?style=for-the-badge)](https://createos.sh)
+
+To deploy your own: connect this repository on [createos.sh](https://createos.sh), keep
+`hasDockerfile` on, port 3000, and set `CREATEOS_SANDBOX_API_KEY` in the environment if you want
+real twins. The `Dockerfile` in this repo is what the platform builds.
+
 ## The sample brain
 
 `brain/` starts from `brain-seed/`: a textile manufacturer's records, synthetic, designed around a working
