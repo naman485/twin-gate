@@ -42,9 +42,7 @@ def _run(args: list[str], timeout=180, cwd=None) -> dict:
 def init(brain: Path) -> dict:
     """Create a keyless local brain and import the folder once."""
     res = _run(["init", "--pglite", "--no-embedding", "--json"], cwd=str(brain))
-    if not res.get("ok") and "already" not in (res.get("stderr", "") + res.get("stdout", "")).lower():
-        return res
-    imp = _run(["import", str(brain), "--no-embed"], timeout=300, cwd=str(brain))
+    imp = _run(["import", ".", "--no-embed"], timeout=300, cwd=str(brain))
     return {"ok": imp.get("ok", False), "init": res, "import": imp}
 
 
@@ -56,10 +54,13 @@ def sync(brain: Path) -> dict:
 def search(query: str, limit=5) -> dict:
     res = _run(["search", query, "--json", "--limit", str(limit)], timeout=60)
     if res.get("ok"):
+        out = res["stdout"]
         try:
-            res["results"] = json.loads(res["stdout"])
+            rows = json.loads(out[out.index("["):]) if "[" in out else []
+            res["results"] = [{"slug": r.get("slug"), "title": r.get("title"), "type": r.get("type"),
+                               "score": round(float(r.get("score") or 0), 3)} for r in rows if isinstance(r, dict)]
         except Exception:
-            res["results"] = res["stdout"]
+            res["results"] = []
     return res
 
 

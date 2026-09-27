@@ -110,7 +110,7 @@ async function run(injectError) {
   catch (e) { $("#status").textContent = "Error: " + e.message; }
   finally { $("#go").disabled = $("#goErr").disabled = false; }
 }
-$("#ask").onclick = async () => { $("#recall").textContent = "Asking GBrain."; try { const r = await api("/api/gbrain/search?q=" + encodeURIComponent($("#q").value)); $("#recall").textContent = r.available ? (typeof r.results === "string" ? r.results : JSON.stringify(r.results, null, 1)).slice(0, 1500) || (r.stderr || "no results") : "gbrain CLI not installed on this machine."; } catch (e) { $("#recall").textContent = "Error: " + e.message; } };
+$("#ask").onclick = async () => { $("#recall").textContent = "Asking GBrain."; try { const r = await api("/api/gbrain/search?q=" + encodeURIComponent($("#q").value)); $("#recall").textContent = !r.available ? "gbrain CLI not installed on this machine." : (r.results && r.results.length) ? r.results.map((x, i) => `${i+1}. ${x.slug}  (${x.type})  ${x.title}`).join("\n") : "GBrain knows nothing about that yet."; } catch (e) { $("#recall").textContent = "Error: " + e.message; } };
 $("#go").onclick = () => run(false);
 $("#goErr").onclick = () => run(true);
 $("#reset").onclick = async () => { await api("/api/reset", {}); current = null; $("#detail").innerHTML = '<h2>Review</h2><div class="status">Brain reset to the seed.</div>'; await refresh(); };
