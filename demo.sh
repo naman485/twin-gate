@@ -2,6 +2,7 @@
 # Stage demo: reset, wrong number (gate fails), clean run (gate passes), approve.
 set -e
 cd "$(dirname "$0")"
+export TWIN_AGENT=${TWIN_AGENT:-rules}   # deterministic on stage; set TWIN_AGENT=ollama to use the model
 rm -rf brain; mkdir -p state; find state -name "tg-*.json" -delete; cp -R brain-seed brain
 export GBRAIN_HOME="${GBRAIN_HOME:-$PWD/.gbrain}"; export PATH="$HOME/.bun/bin:$PATH"
 if command -v gbrain >/dev/null; then rm -rf "$GBRAIN_HOME"; (cd brain && { gbrain init --pglite --no-embedding --json >/dev/null 2>&1 || true; }; { gbrain import . --no-embed >/dev/null 2>&1 || true; }); echo "GBrain recall before approve:"; gbrain search "chargeback INV-102" --json --limit 2 2>/dev/null | python3 -c 'import json,sys;r=json.load(sys.stdin);print("   ", [x["slug"] for x in r] or "nothing about a chargeback yet")'; fi

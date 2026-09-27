@@ -314,7 +314,10 @@ def propose(task: str, inject_error: bool) -> str:
                 p = wt / e["path"]; p.parent.mkdir(parents=True, exist_ok=True); p.write_text(e["content"], encoding="utf-8")
                 log(st, "agent", "edited page in twin (retry)", path=e["path"], agent=agent, bytes=len(e["content"]))
             git("add", "-A", cwd=wt)
-            git("-c", "user.name=twin-agent", "-c", "user.email=agent@twin", "commit", "-q", "-m", f"{tid}: retry after failed checks", cwd=wt)
+            if git("status", "--porcelain", cwd=wt).strip():
+                git("-c", "user.name=twin-agent", "-c", "user.email=agent@twin", "commit", "-q", "-m", f"{tid}: retry after failed checks", cwd=wt)
+            else:
+                log(st, "agent", "retry produced no change")
             local_checks = checks.run_all(wt, changed, base_text)
             log(st, "twin-gate", "checks ran again on twin branch", results=[(c["name"], c["ok"]) for c in local_checks])
     try:
