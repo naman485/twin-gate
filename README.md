@@ -85,7 +85,7 @@ A hosted copy runs on [CreateOS](https://createos.sh) from this repository, auto
 every push to `main`. It uses the rules agent (no Ollama in a 1 GB container) and forks real
 sandboxes when the deployment carries a sandbox key.
 
-[![Open the hosted demo](https://img.shields.io/badge/Open-hosted%20demo-0E6B55?style=for-the-badge)](https://twin-gate.createos.nodeops.network)
+[![Open the hosted demo](https://img.shields.io/badge/Open-hosted%20demo-0E6B55?style=for-the-badge)](https://production-twin-gate.tyzo.nodeops.app)
 [![Deploy your own on CreateOS](https://img.shields.io/badge/Deploy%20your%20own-CreateOS-111111?style=for-the-badge)](https://createos.sh)
 
 To deploy your own: connect this repository on [createos.sh](https://createos.sh), keep

@@ -4,6 +4,8 @@
 
 **Repo.** https://github.com/naman485/twin-gate (public, Apache 2.0, built during hackathon hours on 27 Sep 2026)
 
+**Hosted demo.** https://production-twin-gate.tyzo.nodeops.app (auto-deploys from `main`; rules agent, real sandbox forks)
+
 **Team.** Naman Kabra, individual entry
 
 **What it is.** A QM skill plus a review page. When an agent is asked to change the team's [GBrain](https://gbrain.io)
