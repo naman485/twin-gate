@@ -142,16 +142,43 @@ must be declared in front matter as reconcile: <field> = <page-path-without-.md>
 exactly; link pages by path like [[shipping/shp-0031]]; do not add URLs; do not invent numbers."""
 
 
+LAST_ERROR = {"ollama": ""}
+
+
+def normalise_page(text: str) -> str:
+    """The model sometimes writes the front matter fields without the --- fences. Add them.
+    The gate still checks the result; this only fixes the envelope."""
+    t = text.lstrip()
+    if t.startswith("---"):
+        return text
+    lines = t.splitlines()
+    head = []
+    for ln in lines:
+        if re.match(r"^[A-Za-z_][A-Za-z0-9_ ]*:\s", ln):
+            head.append(ln)
+        else:
+            break
+    if not head or not any(ln.startswith("type:") for ln in head):
+        return text
+    body = "\n".join(lines[len(head):]).lstrip("\n")
+    return "---\n" + "\n".join(head) + "\n---\n\n" + body + ("\n" if not body.endswith("\n") else "")
+
+
 def ollama_edits(task: str, context: str) -> dict | None:
     import urllib.request
     body = {"model": MODEL, "stream": False, "format": "json",
             "messages": [{"role": "user", "content": PROMPT.format(task=task, index=pages_index(), context=context)}]}
     req = urllib.request.Request(OLLAMA + "/api/chat", data=json.dumps(body).encode(), headers={"Content-Type": "application/json"})
     try:
-        with urllib.request.urlopen(req, timeout=180) as r:
+        with urllib.request.urlopen(req, timeout=240) as r:
             doc = json.loads(r.read())
-        return json.loads(doc["message"]["content"])
-    except Exception:
+        out = json.loads(doc["message"]["content"])
+        for e in out.get("edits", []) if isinstance(out, dict) else []:
+            if isinstance(e, dict) and isinstance(e.get("content"), str):
+                e["content"] = normalise_page(e["content"])
+        return out
+    except Exception as e:
+        LAST_ERROR["ollama"] = f"{type(e).__name__}: {str(e)[:200]}"
         return None
 
 
@@ -220,7 +247,7 @@ def run_agent(task: str, inject_error: bool) -> tuple[dict, str]:
         if out and isinstance(out.get("edits"), list) and out["edits"]:
             return out, f"ollama:{MODEL}"
         if mode == "ollama":
-            raise SystemExit("ollama unavailable and TWIN_AGENT=ollama")
+            raise SystemExit(f"ollama unavailable and TWIN_AGENT=ollama ({LAST_ERROR['ollama'] or 'empty or malformed answer'})")
     return rules_edits(task, inject_error), "rules"
 
 
@@ -315,6 +342,9 @@ def propose(task: str, inject_error: bool) -> str:
         ctx = "\n\n".join(read_page(rel, BRAIN) for rel in ("sales-orders/so-1014.md", "shipping/shp-0031.md", "customers/spinning-mill-a.md"))
         fixed = ollama_retry(task, ctx, failures, edits)
         if fixed and isinstance(fixed.get("edits"), list) and fixed["edits"]:
+            for e in fixed["edits"]:
+                if isinstance(e, dict) and isinstance(e.get("content"), str):
+                    e["content"] = normalise_page(e["content"])
             log(st, "agent", "read the failed checks and retried in the same twin", failed=[c["name"] for c in local_checks if not c["ok"]])
             edits = fixed
             changed = sorted(set(changed) | {e["path"] for e in edits["edits"]})
