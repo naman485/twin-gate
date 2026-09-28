@@ -25,7 +25,8 @@ keep = {a for a in args if a.startswith("sb-")}
 for i, a in enumerate(args):
     if a == "--keep-url" and i + 1 < len(args):
         try:
-            with urllib.request.urlopen(args[i + 1].rstrip("/") + "/api/base", timeout=15) as r:
+            req = urllib.request.Request(args[i + 1].rstrip("/") + "/api/base", headers={"User-Agent": "twin-gate-sweep"})
+            with urllib.request.urlopen(req, timeout=15) as r:
                 cur = json.loads(r.read()).get("current")
                 if cur:
                     keep.add(cur)
