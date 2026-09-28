@@ -98,6 +98,24 @@ To deploy your own: open [createos.sh/app/deploy](https://createos.sh/app/deploy
 `hasDockerfile` on, port 3000, and set `CREATEOS_SANDBOX_API_KEY` in the environment if you want
 real twins. The `Dockerfile` in this repo is what the platform builds.
 
+## The plant example
+
+[`/plant`](https://production-twin-gate.tyzo.nodeops.app/plant) is the same gate seen from inside a small textile
+plant's automations, in the console shape of [Factory Brain](https://production-factory-brain.tyzo.nodeops.app), the
+author's other hackathon build. Two automations run on the sample brain:
+
+| Automation | Trigger | Records the agent writes, in one twin | Who approves |
+|---|---|---|---|
+| Truckload to grower payment | Two truck scale SMS, then a QC voice note in three languages | Scale ticket, grower page, settlement (the settlement declares `reconcile: net_kg = receiving/st-1041#net_kg`) | Accounts |
+| Chargeback defence | A broker forwards a mill's claim | Chargeback with the dispute draft, the customer's history line, and a procedure the next claim follows | Owner |
+
+Every run's records go into one twin. The five checks run on the branch and inside the forked
+sandbox, the Inbox shows the twin, and approve is the merge. The sample "agent writes the wrong
+weight" makes the reconcile check block the run before anyone is asked. The channels (SMS,
+WhatsApp, Gmail, Tally) are simulated and the page says so; the twin, the sandbox, the checks,
+the merge and the GBrain sync are real. The logic lives in [`plant.py`](plant.py); the console is
+[`plant.html`](plant.html); the SMS pairing is [`plant/kanta_pair.py`](plant/kanta_pair.py).
+
 ## The sample brain
 
 `brain/` starts from `brain-seed/`: a textile manufacturer's records, synthetic, designed around a working
@@ -137,3 +155,8 @@ counts.
   quality of a 7B model.
 - The sandbox fork carries the brain files; attached data disks are not forked yet. Sandbox API: [SDK and reference](https://github.com/nodeops-app/createos-sandbox-sdk).
 - Approval is one click by whoever holds the page. Identity and roles are the deployment's job.
+- Each server keeps one paused base sandbox and destroys it on approve, reset and SIGTERM. A
+  hosting platform that sleeps an idle container and wakes it as a fresh one skips SIGTERM, so
+  bases can leak; a janitor sweeps paused bases older than 30 minutes at boot and every ten
+  minutes, and [`sweep_bases.py`](sweep_bases.py) does the same by hand. Twins in flight live in
+  the container's state and do not survive a sleep.

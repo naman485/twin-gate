@@ -289,18 +289,81 @@ def warm_base() -> str | None:
         return None
 
 
-def invalidate_base():
-    """Main moved (approve) or was replaced (reset): the base no longer mirrors it. Drop it."""
+def invalidate_base() -> dict:
+    """Main moved (approve) or was replaced (reset): the base no longer mirrors it. Drop it.
+
+    Returns what happened so the server can log it; a base that survives here is a leaked sandbox."""
     marker = _base_marker()
     if not marker.exists():
-        return
+        return {"destroyed": None, "reason": "no marker"}
     try:
         info = json.loads(marker.read_text())
         marker.unlink()
         if info.get("id"):
             sbx.destroy(info["id"])
-    except (sbx.SandboxError, ValueError, OSError):
+            _remember_base(info["id"], "destroyed")
+            return {"destroyed": info["id"]}
+        return {"destroyed": None, "reason": "marker without id"}
+    except (sbx.SandboxError, ValueError, OSError) as e:
+        sys.stderr.write(f"invalidate_base: {type(e).__name__}: {e}\n")
+        return {"destroyed": None, "reason": f"{type(e).__name__}: {str(e)[:120]}"}
+
+
+def _remember_base(sid: str, what: str):
+    """Append-only record of every base this state dir created or destroyed, for sweeps and post-mortems."""
+    try:
+        with (STATE / "base-history.jsonl").open("a") as f:
+            f.write(json.dumps({"at": now(), "base": sid, "what": what}) + "\n")
+    except OSError:
         pass
+
+
+def base_history() -> list[dict]:
+    p = STATE / "base-history.jsonl"
+    if not p.exists():
+        return []
+    return [json.loads(l) for l in p.read_text().splitlines() if l.strip()]
+
+
+def sweep_bases(max_age_s: int = 1800, dry_run: bool = False) -> dict:
+    """Destroy paused twin-gate-base-* sandboxes older than max_age_s that are not this server's base.
+
+    A container the platform puts to sleep or kills without SIGTERM leaves its base behind, and a
+    woken container warms a new one. Every server runs this at boot and every ten minutes, so a
+    leaked base lives at most about forty minutes. Another live server whose base gets swept
+    rebuilds it on its next run (about ten seconds)."""
+    if not sbx.available():
+        return {"swept": [], "kept": [], "reason": "sandbox off"}
+    from datetime import datetime as _dt
+    current = json.loads(_base_marker().read_text()).get("id") if _base_marker().exists() else None
+    swept, kept = [], []
+    try:
+        items = sbx._req("GET", "/v1/sandboxes")
+        items = items.get("data", []) if isinstance(items, dict) else items
+    except sbx.SandboxError as e:
+        return {"swept": [], "kept": [], "reason": f"list failed: {e}"}
+    now_ts = _dt.now(timezone.utc).timestamp()
+    for sb in items:
+        if not str(sb.get("name", "")).startswith("twin-gate-base-") or sb.get("status") not in ("paused", "pausing", "running"):
+            continue
+        created = sb.get("created_at") or sb.get("createdAt") or ""
+        try:
+            age = now_ts - _dt.fromisoformat(created.replace("Z", "+00:00")).timestamp()
+        except ValueError:
+            age = 0
+        if sb["id"] == current or age < max_age_s:
+            kept.append(sb["id"])
+            continue
+        if not dry_run:
+            try:
+                sbx.destroy(sb["id"])
+            except sbx.SandboxError as e:
+                sys.stderr.write(f"sweep_bases: {sb['id']}: {e}\n")
+                continue
+        swept.append(sb["id"])
+    if swept:
+        sys.stderr.write(f"sweep_bases: {'would destroy' if dry_run else 'destroyed'} {len(swept)} stray base(s)\n")
+    return {"swept": swept, "kept": kept}
 
 
 def _base_sandbox(st: dict | None) -> str | None:
@@ -324,6 +387,8 @@ def _base_sandbox(st: dict | None) -> str | None:
     sbx.pause(sid)
     sbx.wait(sid, want=("paused",), timeout=90)
     marker.write_text(json.dumps({"id": sid, "at": now(), "head": git("rev-parse", "--short", "HEAD", check=False).strip()}))
+    _remember_base(sid, "created")
+    sys.stderr.write(f"base sandbox {sid} created\n")
     if st is not None:
         log(st, "twin-gate", "base sandbox ready", sandbox=sid, note="brain uploaded at its known state, paused")
     return sid

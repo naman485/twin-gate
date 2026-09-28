@@ -48,7 +48,7 @@ def reset_brain():
                 pass
         p.unlink()
     tg.ensure_brain()
-    tg.invalidate_base()
+    sys.stderr.write(f"reset: {tg.invalidate_base()}\n")
     plant.reset()
     gb = tg.gb.reset(tg.BRAIN) if tg.gb.available() else {"ok": False, "reason": "gbrain not installed"}
     background(tg.warm_base)
@@ -73,6 +73,19 @@ def shutdown(signum, frame):
             pass
     tg.invalidate_base()
     raise SystemExit(0)
+
+
+def janitor():
+    """Sweep stray base sandboxes at boot and every ten minutes. See twingate.sweep_bases."""
+    import time
+    while True:
+        try:
+            res = tg.sweep_bases()
+            if res.get("swept"):
+                sys.stderr.write(f"janitor: swept {res['swept']}\n")
+        except Exception as e:  # noqa: BLE001  the janitor must never take the server down
+            sys.stderr.write(f"janitor: {type(e).__name__}: {e}\n")
+        time.sleep(600)
 
 
 def warm_gbrain():
@@ -103,6 +116,9 @@ class H(BaseHTTPRequestHandler):
             if f.exists() and f.suffix in STATIC:
                 return self._send(200, f.read_bytes(), STATIC[f.suffix])
             return self._send(404, {"error": "not found"})
+        if self.path == "/api/base":
+            return self._send(200, {"current": (json.loads(tg._base_marker().read_text()).get("id") if tg._base_marker().exists() else None),
+                                    "history": tg.base_history()[-40:]})
         if self.path == "/api/plant/brain":
             return self._send(200, plant.graph())
         if self.path == "/api/plant/config":
@@ -110,6 +126,7 @@ class H(BaseHTTPRequestHandler):
         if self.path == "/api/twins":
             return self._send(200, {"twins": tg.list_twins(), "sandbox": tg.sbx.available(), "gbrain": tg.gb.available(),
                                     "base_ready": tg._base_marker().exists(),
+                                    "base": (json.loads(tg._base_marker().read_text()).get("id") if tg._base_marker().exists() else None),
                                     "brain": str(tg.BRAIN), "head": tg.git("log", "--oneline", "-5", check=False)})
         if self.path.startswith("/api/twin/"):
             try:
@@ -175,5 +192,6 @@ if __name__ == "__main__":
     signal.signal(signal.SIGINT, shutdown)
     background(tg.warm_base)
     background(warm_gbrain)
+    background(janitor)
     print(f"Twin Gate on http://localhost:{PORT}  brain={tg.BRAIN}  sandbox={'on' if tg.sbx.available() else 'off (set CREATEOS_SANDBOX_API_KEY)'}")
     ThreadingHTTPServer(("0.0.0.0", PORT), H).serve_forever()

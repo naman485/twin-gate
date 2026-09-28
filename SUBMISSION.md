@@ -8,15 +8,20 @@
 
 **Team.** Naman Kabra, individual entry
 
-**What it is.** A QM skill plus a review page. When an agent is asked to change the team's [GBrain](https://gbrain.io)
-folder, it does not write to main. It proposes in a twin: a branch of the brain, and a fork of a
-paused [CreateOS Sandbox](https://createos.sh/docs/Sandbox/Overview/) holding the brain at its known state, with egress denied in the kernel.
-The agent edits there. Every action goes on a hash-chained log. Five checks run on the twin and
-again inside the sandbox: front matter, links, figures reconcile with their source pages, no new
-outbound URLs, no key material. The owner sees diff, checks and log on one page and approves
-with one click, which merges the branch, syncs the merge into GBrain and destroys the sandbox.
-A failed check greys out approve. If the model fails a check, the failures go back to it and it
-retries once in the same twin.
+**What it is.** Teams are starting to let agents write into the memory they run on, the [GBrain](https://gbrain.io)
+folder of records and procedures. Today that write lands on main the moment the agent makes it,
+and the owner finds out afterwards. Twin Gate puts a gate in front of the write. An agent asked to
+change the brain works in a twin instead, a branch of the brain plus a forked
+[CreateOS Sandbox](https://createos.sh/docs/Sandbox/Overview/) that holds the brain at its known state and cannot reach the internet.
+Five checks run on the branch and again inside the sandbox: front matter, links resolve, copied
+figures match their source pages, no new outbound URLs, no key material. Every action lands on a
+hash-chained log. The owner sees the diff, the checks and the log on one page and approves with
+one click. Approve is the merge. It also syncs GBrain and destroys the sandbox. A failed check
+greys out approve. A model that failed gets the failures back and retries once in the same twin.
+
+**Plant example.** [`/plant`](https://production-twin-gate.tyzo.nodeops.app/plant) runs a textile plant's two automations,
+truckload to grower payment and chargeback defence, through the same gate: each run's records go
+into one twin, and approve is the merge.
 
 **Built with.** [GBrain](https://gbrain.io) (a keyless local GBrain indexes the brain; `gbrain sync` runs on approve, so recall knows a change only after the gate), [QM](https://qm.ycombinator.com) (shipped
 as a [skill pack](https://github.com/yc-software/qm/blob/main/docs/skill-registry.md) that any QM deployment imports from this repo; pairs with QM's Strict posture),

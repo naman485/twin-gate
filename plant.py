@@ -280,7 +280,7 @@ def on_claim(text: str, inject_error: bool = False, background: bool = True) -> 
         f"CHARGEBACK:\n{text}\n\nSALES ORDER:\n{order}\n\nSHIPMENT:\n{shipment}\n\nCUSTOMER:\n{customer}\n\n"
         + (f"HOW THIS PLANT HANDLES THIS TYPE (learned procedure):\n{read(sop_rel + '.md')}" if learned else ""),
         as_json=False) or fallback_reply(so_id, invoice, order, shipment, param)
-    draft = re.sub(r"\s*For the (plant|gin)\.?\s*$", "", draft, flags=re.I).strip() + "\n\nFor the plant"
+    draft = re.sub(r"\s*For the plant\.?\s*$", "", draft, flags=re.I).strip() + "\n\nFor the plant"
 
     n = len(list((tg.BRAIN / "chargebacks").glob("*.md"))) + 1 if (tg.BRAIN / "chargebacks").exists() else 1
     cb = f"CB-{n:04d}"
