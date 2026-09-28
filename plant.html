@@ -260,7 +260,7 @@ async function prove(nodeId,twinId){
   const sb=t.sandbox||{},bad=(t.checks||[]).filter(c=>!c.ok);
   const chk=(t.checks||[]).map(c=>`<div class="chk"><b style="color:${c.ok?"var(--success)":"var(--danger)"}">${c.ok?"✓":"✗"}</b>${esc(c.name)}${c.ok?"":": "+esc(c.detail)}</div>`).join("")
     +(sb.checks?`<div class="chk" style="margin-top:4px;color:var(--ink-3)">Same checks inside the sandbox: ${sb.checks.ok?"passed":"failed"}. Egress probe: ${esc((sb.egress_probe||"").slice(-60))}</div>`:"");
-  const where=sb.id?`Twin ${twinId} · sandbox ${sb.id.slice(0,16)}… forked from ${(sb.base||"").slice(0,16)}… · egress limited to ${esc((sb.egress||[]).join(", ")||"none")}`:sb.error?`Twin ${twinId} · sandbox error: ${esc(sb.error)}`:`Twin ${twinId} · git branch (no sandbox key)`;
+  const where=sb.id?`Twin ${twinId} · sandbox ${sb.id.slice(0,16)}… forked from ${(sb.base||"").slice(0,16)}… · egress limited to ${esc((sb.egress||[]).join(", ")||"none")}`:sb.error?`Twin ${twinId} · ${/quota/i.test(sb.error)?"daily sandbox quota used up, ran as a git branch on the server":"sandbox error: "+esc(sb.error)}`:`Twin ${twinId} · git branch (no sandbox key)`;
   if(t.status==="error"){setNode(nodeId,"fail",`Run failed: ${t.error}`);log(nodeId,"Twin Gate could not run",esc(t.error||""),"fail");return{ok:false,t,bad:[],chk,where,error:t.error}}
   if(bad.length){setNode(nodeId,"fail",`Blocked: ${bad.map(c=>c.detail).join("; ")}`);log(nodeId,"Blocked by Twin Gate",where,"fail",chk);return{ok:false,t,bad,chk,where}}
   setNode(nodeId,"done",`All ${t.checks.length} checks passed in ${twinId}${sb.id?", on the branch and inside the sandbox":""}`);log(nodeId,"Proven in a twin",where,"done",chk);
